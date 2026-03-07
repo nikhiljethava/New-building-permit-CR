@@ -1,0 +1,42 @@
+import os
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
+from dotenv import load_dotenv
+from services import ai_service
+
+# Load environment variables
+load_dotenv()
+
+app = FastAPI(title="Building Plan Compliance Agent")
+
+class Violation(BaseModel):
+    section: str
+    description: str
+    suggestion: str
+
+class ComplianceReport(BaseModel):
+    status: str
+    violations: List[Violation]
+    approved_elements: List[str]
+
+@app.post("/analyze", response_model=ComplianceReport)
+def analyze_plan(file: UploadFile = File(...)):
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    # Read the file content synchronously
+    content = file.file.read()
+
+    # 1. Use Document AI to extract text (Optional, if we want to query RAG with text specifically)
+    extracted_text = ai_service.extract_text_from_pdf(content)
+
+    # 2. Use Gemini and Vertex RAG to analyze the plan (passing the raw PDF for Vision)
+    analysis_result = ai_service.analyze_plan_with_gemini(extracted_text, content)
+
+    # Return structured JSON
+    return ComplianceReport(**analysis_result)
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
