@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '../store';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, AlertCircle, CheckCircle2, AlertTriangle, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Upload, AlertCircle, CheckCircle2, AlertTriangle, Loader2, Clock, LogOut } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export function PermitDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const [permit, setPermit] = useState<any>(null);
@@ -115,8 +115,26 @@ export function PermitDetail() {
   if (!permit) return <div className="flex justify-center mt-20"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
+              <img src="/scc_logo.jpg" alt="SCC Logo" className="h-8 w-8 rounded-full" />
+              <h1 className="text-xl font-bold text-gray-900">Santa Clara County Portal</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">{user?.email}</span>
+              <button onClick={() => { logout(); navigate('/login'); }} className="text-gray-400 hover:text-gray-500">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
         <button onClick={() => navigate('/')} className="flex items-center text-sm font-medium text-gray-500 hover:text-gray-700">
             <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
         </button>
@@ -231,7 +249,7 @@ export function PermitDetail() {
                 </ul>
             </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '../store';
 import { useNavigate } from 'react-router-dom';
-import { Home } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -30,9 +29,9 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Home className="mx-auto h-12 w-12 text-blue-600" />
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center flex flex-col items-center">
+        <img src="/scc_logo.jpg" alt="Santa Clara County Logo" className="h-24 w-auto mb-4 rounded-full shadow-sm" />
+        <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">
           Santa Clara County
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
