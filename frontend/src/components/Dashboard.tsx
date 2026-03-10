@@ -19,44 +19,65 @@ export function Dashboard() {
       return;
     }
 
+    let isMounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       try {
         // Fetch properties
         const propResponse = await axios.get(`${API_URL}/api/users/${user.id}/properties`);
 
+        if (!isMounted) return;
+
         let props = propResponse.data;
+
+        // Prevent double creation in React Strict Mode by checking if we already started creating
         if (props.length === 0) {
+            // Check if we already have it in local state to avoid race condition
             // Auto-create a property for demo purposes
-            const newPropRes = await axios.post(`${API_URL}/api/users/${user.id}/properties`, {
-                address: "123 Main St",
-                city: "Santa Clara",
-                zip_code: "95050"
-            });
-            props = [newPropRes.data];
+            try {
+              const newPropRes = await axios.post(`${API_URL}/api/users/${user.id}/properties`, {
+                  address: "123 Main St",
+                  city: "Santa Clara",
+                  zip_code: "95050"
+              });
+              props = [newPropRes.data];
+            } catch (e) {
+              // If it failed, it might be a race condition from strict mode. Fetch again just in case
+              const retryRes = await axios.get(`${API_URL}/api/users/${user.id}/properties`);
+              props = retryRes.data;
+            }
         }
 
+        if (!isMounted) return;
+
         setProperties(props);
-        if (!currentProperty) {
+        if (!currentProperty && props.length > 0) {
             setCurrentProperty(props[0]);
         }
 
         // Fetch permits if we have a property
-        if (props[0]) {
+        if (props.length > 0) {
             const propId = currentProperty ? currentProperty.id : props[0].id;
             const permitResponse = await axios.get(`${API_URL}/api/properties/${propId}/permits`);
-            setPermits(permitResponse.data);
+            if (isMounted) {
+                setPermits(permitResponse.data);
+            }
         }
 
       } catch (err) {
-        console.error("Failed fetching data", err);
+        if (isMounted) console.error("Failed fetching data", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
-  }, [user]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, currentProperty, setCurrentProperty, navigate]);
 
   const handleCreatePermit = async () => {
       if (!currentProperty) return;

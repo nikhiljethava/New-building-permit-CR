@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 class AIService:
     def __init__(self):
         # Load environment variables
-        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-        self.location = os.getenv("GGOOGLE_CLOUD_LOCATION", "us-central1")
+        self.project_id = os.getenv("GCP_PROJECT_ID")
+        self.location = os.getenv("GCP_LOCATION", "us-central1")
         self.docai_processor_id = os.getenv("DOCUMENT_AI_PROCESSOR_ID")
         self.docai_location = os.getenv("DOCUMENT_AI_LOCATION", "us")
         self.rag_corpus_name = os.getenv("VERTEX_RAG_CORPUS_NAME")
-        self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
+        self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro")
 
         # Initialize Vertex AI
         if self.project_id:

@@ -5,10 +5,29 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from services import ai_service
 
+from opentelemetry import trace
+from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
 # Load environment variables
 load_dotenv()
 
+# Initialize OpenTelemetry
+project_id = os.getenv("GCP_PROJECT_ID")
+if project_id:
+    tracer_provider = TracerProvider()
+    cloud_trace_exporter = CloudTraceSpanExporter(project_id=project_id)
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(cloud_trace_exporter)
+    )
+    trace.set_tracer_provider(tracer_provider)
+
 app = FastAPI(title="Building Plan Compliance Agent")
+
+if project_id:
+    FastAPIInstrumentor.instrument_app(app)
 
 class Violation(BaseModel):
     section: str

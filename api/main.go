@@ -11,8 +11,16 @@ import (
 	"os"
 	"time"
 
+	"context"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -136,6 +144,13 @@ func CreateUserPropertyHandler(c *gin.Context) {
 		return
 	}
 
+	// Check if a property with this address already exists for this user (prevent duplicate creation from strict mode)
+	var existingProperty Property
+	if err := DB.Where("user_id = ? AND address = ?", user.ID, property.Address).First(&existingProperty).Error; err == nil {
+		c.JSON(http.StatusOK, existingProperty)
+		return
+	}
+
 	property.UserID = user.ID
 	DB.Create(&property)
 	c.JSON(http.StatusCreated, property)
@@ -179,6 +194,24 @@ func GetPermitHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, permit)
 }
 
+func DeletePermitHandler(c *gin.Context) {
+	permitId := c.Param("id")
+
+	// First, delete associated submissions to maintain referential integrity
+	DB.Where("permit_id = ?", permitId).Delete(&PermitSubmission{})
+
+	// Delete the permit
+	result := DB.Delete(&Permit{}, permitId)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete permit"})
+		return
+	}
+
+	// Adding CORS headers explicitly on DELETE can sometimes help if preflight is flaky,
+	// though Gin handles it. Let's ensure standard JSON response.
+	c.JSON(http.StatusOK, gin.H{"message": "Permit deleted successfully"})
+}
+
 // Struct to extract status from Agent JSON response
 type AgentResponse struct {
 	Status           string        `json:"status"`
@@ -186,18 +219,58 @@ type AgentResponse struct {
 	ApprovedElements []string      `json:"approved_elements"`
 }
 
+// --- OpenTelemetry Initialization ---
+
+func initTracer() (*sdktrace.TracerProvider, error) {
+	projectID := os.Getenv("GCP_PROJECT_ID")
+	if projectID == "" {
+		log.Println("GCP_PROJECT_ID not set, skipping OpenTelemetry initialization")
+		return nil, nil
+	}
+
+	exporter, err := texporter.New(texporter.WithProjectID(projectID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize exporter: %v", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("building-plan-api"),
+		)),
+	)
+	otel.SetTracerProvider(tp)
+	return tp, nil
+}
+
 // --- Main API Entrypoint ---
 
 func main() {
+	// Initialize OpenTelemetry Trace Provider
+	tp, err := initTracer()
+	if err != nil {
+		log.Printf("Warning: failed to initialize OpenTelemetry: %v\n", err)
+	} else if tp != nil {
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				log.Printf("Error shutting down tracer provider: %v", err)
+			}
+		}()
+	}
+
 	// Initialize SQLite Database
 	InitDB()
 
 	r := gin.Default()
 
+	// Add OpenTelemetry middleware
+	r.Use(otelgin.Middleware("building-plan-api"))
+
 	// Setup CORS to allow our frontend to make requests
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // in production restrict this to frontend URL
-		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
+		AllowMethods:     []string{"POST", "GET", "OPTIONS", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -332,6 +405,7 @@ func main() {
 		api.GET("/properties/:id/permits", GetPropertyPermitsHandler)
 		api.POST("/properties/:id/permits", CreatePropertyPermitHandler)
 		api.GET("/permits/:id", GetPermitHandler)
+		api.DELETE("/permits/:id", DeletePermitHandler)
 	}
 
 	port := os.Getenv("PORT")
