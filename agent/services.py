@@ -18,14 +18,29 @@ import logging
 from typing import List, Dict, Any
 
 from google.cloud import documentai
+from pydantic import BaseModel, Field
 from google.cloud import aiplatform
 import vertexai
 from vertexai.preview import rag
-from vertexai.generative_models import GenerativeModel, Part
+from google.genai.types import Part, Content, Blob
+from google.adk.agents import LlmAgent
+from google.adk.runners import Runner
+from google.adk.sessions import VertexAiSessionService
+from google.adk.memory import VertexAiMemoryBankService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class Violation(BaseModel):
+    section: str
+    description: str
+    suggestion: str
+
+class PlanAnalysisResponse(BaseModel):
+    status: str = Field(description="Approved | Changes Suggested | Rejected")
+    violations: list[Violation]
+    approved_elements: list[str]
 
 class AIService:
     def __init__(self):
@@ -104,9 +119,7 @@ class AIService:
         # Combine the text extraction and multimodal capability of Gemini
         # We pass the PDF directly to Gemini as a Part to analyze diagrams
         try:
-             model = GenerativeModel(self.model_name)
-
-             # Create a prompt that asks the model to output JSON
+             # Create a prompt that asks the model to output structured data
              prompt = """
              You are an expert Building Code Compliance Inspector for Santa Clara County, California.
              Review the provided building plan PDF document (which may contain text and architectural drawings).
@@ -116,21 +129,6 @@ class AIService:
              Analyze the document to identify:
              1. Elements that comply with the codes and are approved.
              2. Elements that violate the codes or need changes. For each violation, specify the exact code section (e.g. "CA Title 24, Part 6, Section 150.0"), describe the issue, and provide a suggestion for fixing it.
-
-             Your response MUST be a valid JSON object with the following schema:
-             {
-                 "status": "Approved" | "Changes Suggested" | "Rejected",
-                 "violations": [
-                     {
-                         "section": "string",
-                         "description": "string",
-                         "suggestion": "string"
-                     }
-                 ],
-                 "approved_elements": ["string"]
-             }
-
-             Do not include any markdown formatting like ```json ... ```, just output the raw JSON.
              """
 
              # You can optionally pass retrieved RAG context here as well:
@@ -138,23 +136,50 @@ class AIService:
              if rag_context:
                  prompt += f"\n\nHere is relevant code context to reference:\n{rag_context}"
 
+             agent = LlmAgent(
+                 name="plan_analyzer",
+                 model=self.model_name,
+                 instruction=prompt,
+                 output_schema=PlanAnalysisResponse
+             )
+
+             # Create runner with Vertex AI Memory and Session Stores
+             # Assuming a default engine ID or creating one if needed for the app
+             runner = Runner(
+                 app_name="building-plan-validation",
+                 agent=agent,
+                 session_service=VertexAiSessionService(self.project_id, self.location),
+                 memory_service=VertexAiMemoryBankService(self.project_id, self.location)
+             )
+
              # Create the document part
-             pdf_part = Part.from_data(data=pdf_bytes, mime_type="application/pdf")
+             pdf_part = Part(inline_data=Blob(data=pdf_bytes, mime_type="application/pdf"))
 
-             response = model.generate_content([prompt, pdf_part])
+             # Run the agent
+             new_message = Content(
+                 role="user",
+                 parts=[
+                     Part(text="Please analyze the attached building plan document."),
+                     pdf_part
+                 ]
+             )
 
-             try:
-                 # Try to parse the response as JSON
-                 cleaned_response = response.text.strip()
-                 if cleaned_response.startswith('```json'):
-                     cleaned_response = cleaned_response[7:]
-                 if cleaned_response.endswith('```'):
-                     cleaned_response = cleaned_response[:-3]
+             events = runner.run(
+                 user_id="default_user",
+                 session_id="default_session",
+                 new_message=new_message
+             )
 
-                 return json.loads(cleaned_response)
-             except json.JSONDecodeError as e:
-                 logger.error(f"Failed to parse Gemini JSON output: {response.text}")
-                 logger.error(f"JSON Error: {e}")
+             final_response_data = None
+             for event in events:
+                 if event.type == "run_completed":
+                     # ADK populates event.data with the generated response matching the output_schema
+                     final_response_data = event.data
+
+             if final_response_data:
+                 return final_response_data.model_dump()
+             else:
+                 logger.error("Agent run completed without returning valid response data.")
                  return self._get_mock_response()
 
         except Exception as e:
