@@ -29,7 +29,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 load_dotenv()
 
 # Initialize OpenTelemetry
-project_id = os.getenv("GCP_PROJECT_ID")
+project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
 if project_id:
     tracer_provider = TracerProvider()
     cloud_trace_exporter = CloudTraceSpanExporter(project_id=project_id)

@@ -5,8 +5,8 @@ from vertexai.preview import rag
 import vertexai
 
 # Configuration
-PROJECT_ID = os.popen("gcloud config get-value project").read().strip()
-LOCATION = "us-west1"
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.popen("gcloud config get-value project").read().strip()
+LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION") or "us-west1"
 CORPUS_DISPLAY_NAME = "ca-building-codes"
 BUILDING_CODES_DIR = "../building-codes"
 

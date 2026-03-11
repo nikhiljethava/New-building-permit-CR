@@ -66,7 +66,7 @@ steps:
       - "--service-account"
       - "build-permit-sa@${PROJECT_ID}.iam.gserviceaccount.com"
       - "--set-env-vars"
-      - "GCP_PROJECT_ID=${PROJECT_ID},DB_NAME=/app/data/building_plans.db,AGENT_URL=${_AGENT_URL}"
+      - "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},DB_NAME=/app/data/building_plans.db,AGENT_URL=${_AGENT_URL}"
       - "--startup-probe"
       - "initialDelaySeconds=30,tcpSocket.port=8080,timeoutSeconds=240,periodSeconds=240,failureThreshold=1"
       - "--max-instances"
@@ -80,12 +80,15 @@ steps:
       - "--add-volume-mount=volume=db-vol,mount-path=/app/data"
 
 substitutions:
-  _REGION: us-central1
+  _REGION: us-central1 # This can be overridden by GOOGLE_CLOUD_LOCATION if passed as substitution
   _ARTIFACT_REGISTRY_REPO_NAME: building-permit
   _CONTAINER_NAME: building-permit-api
   _COMMIT_SHA: latest
-  _AGENT_URL: http://localhost:8000/analyze # Default, should be overridden in Cloud Build trigger
+  _AGENT_URL: http://localhost:8000/analyze
   _DB_BUCKET_NAME: ${PROJECT_ID}-building-permit-data
+
+# Environment vars for the runtime
+# We'll map _REGION to GOOGLE_CLOUD_LOCATION in the deploy step
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}

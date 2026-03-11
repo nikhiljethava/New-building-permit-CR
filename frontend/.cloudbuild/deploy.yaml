@@ -58,7 +58,7 @@ steps:
       - "--service-account"
       - "build-permit-sa@${PROJECT_ID}.iam.gserviceaccount.com"
       - "--set-env-vars"
-      - 'VITE_API_URL=${_API_URL}'
+      - 'VITE_API_URL=${_API_URL},GOOGLE_CLOUD_LOCATION=${_REGION}'
       - "--startup-probe"
       - 'initialDelaySeconds=30,tcpSocket.port=3000,timeoutSeconds=240,periodSeconds=240,failureThreshold=1'
       - "--max-instances"
