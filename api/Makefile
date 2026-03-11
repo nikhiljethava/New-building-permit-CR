@@ -11,3 +11,6 @@ build:
 
 clean:
 	rm -f api-server
+
+deploy:
+	gcloud builds submit --config .cloudbuild/deploy.yaml --substitutions _COMMIT_SHA=$(shell git rev-parse --short HEAD) .

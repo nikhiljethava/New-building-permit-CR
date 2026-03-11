@@ -236,9 +236,9 @@ type AgentResponse struct {
 // --- OpenTelemetry Initialization ---
 
 func initTracer() (*sdktrace.TracerProvider, error) {
-	projectID := os.Getenv("GCP_PROJECT_ID")
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
-		log.Println("GCP_PROJECT_ID not set, skipping OpenTelemetry initialization")
+		log.Println("GOOGLE_CLOUD_PROJECT not set, skipping OpenTelemetry initialization")
 		return nil, nil
 	}
 

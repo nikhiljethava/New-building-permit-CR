@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 class AIService:
     def __init__(self):
         # Load environment variables
-        self.project_id = os.getenv("GCP_PROJECT_ID")
-        self.location = os.getenv("GCP_LOCATION", "us-central1")
+        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+        self.location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
         self.docai_processor_id = os.getenv("DOCUMENT_AI_PROCESSOR_ID")
         self.docai_location = os.getenv("DOCUMENT_AI_LOCATION", "us")
         self.rag_corpus_name = os.getenv("VERTEX_RAG_CORPUS_NAME")
-        self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro")
+        self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
 
         # Initialize Vertex AI
         if self.project_id:
@@ -45,7 +45,7 @@ class AIService:
             except Exception as e:
                 logger.error(f"Failed to initialize Vertex AI: {e}")
         else:
-            logger.warning("GCP_PROJECT_ID not set. GCP services will not work.")
+            logger.warning("GOOGLE_CLOUD_PROJECT not set. GCP services will not work.")
 
     def extract_text_from_pdf(self, pdf_bytes: bytes) -> str:
         """Use Document AI to extract text from a PDF."""

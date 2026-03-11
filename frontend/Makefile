@@ -11,3 +11,6 @@ build:
 
 clean:
 	rm -rf node_modules dist
+
+deploy:
+	gcloud builds submit --config .cloudbuild/deploy.yaml --substitutions _COMMIT_SHA=$(shell git rev-parse --short HEAD) .

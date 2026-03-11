@@ -19,18 +19,26 @@ This is a monorepo containing three microservices:
 
 ## Google Cloud Setup
 
-1. Enable the following APIs in your GCP Project:
-   - Vertex AI API
-   - Cloud Document AI API
+### 1. Automated Infrastructure Setup
 
-2. Create a Document AI Processor:
-   - Go to Document AI -> Processors -> Create Processor -> Document OCR.
-   - Note the Processor ID.
+We provide a set of scripts in the `infra` directory to automate the one-time setup of GCP APIs, Service Accounts, and the Vertex AI RAG Engine.
 
-3. Set up Vertex AI RAG Engine:
-   - Upload your PDFs containing the Santa Clara building codes and California Building Standards to a GCS bucket.
-   - Use the Vertex AI RAG Engine to create a corpus from those documents.
-   - Note the Corpus ID/Name.
+```bash
+cd infra
+make setup
+```
+
+This will:
+- Enable necessary APIs (Vertex AI, Document AI, Telemetry, etc.).
+- Create a service account `build-permit-sa` with the required IAM roles.
+- Create a Vertex AI RAG Corpus named `ca-building-codes` in `us-west1` and upload documents from `building-codes/`.
+
+### 2. Manual Setup (Document AI)
+
+After running the automated setup, you need to manually create a Document AI Processor:
+- Go to the [Document AI console](https://console.cloud.google.com/ai/document-ai/processors).
+- Click **Create Processor** and select **Document OCR**.
+- Note the **Processor ID** and add it to your `.env` file in the `agent` directory.
 
 ## Local Development
 
