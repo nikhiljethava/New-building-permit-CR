@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '../store';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -32,6 +32,7 @@ export function PermitDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [latestReport, setLatestReport] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -98,9 +99,8 @@ export function PermitDetail() {
 
       // Crucial fix: Reset the file input so it correctly updates UI state and allows re-selection
       setFile(null);
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) {
-          fileInput.value = '';
+      if (fileInputRef.current) {
+          fileInputRef.current.value = '';
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'An error occurred while analyzing the plan.');
@@ -196,7 +196,13 @@ export function PermitDetail() {
                         <div className="flex text-sm text-gray-600 justify-center">
                             <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
                             <span>{file ? file.name : 'Select a PDF file'}</span>
-                            <input type="file" accept=".pdf" className="sr-only" onChange={handleFileChange} />
+                            <input
+                                type="file"
+                                accept=".pdf"
+                                className="sr-only"
+                                onChange={handleFileChange}
+                                ref={fileInputRef}
+                            />
                             </label>
                         </div>
                     </div>
