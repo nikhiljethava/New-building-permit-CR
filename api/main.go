@@ -27,6 +27,7 @@ import (
 
 	"context"
 
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -34,7 +35,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
-	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -45,23 +45,23 @@ import (
 var DB *gorm.DB
 
 type User struct {
-	ID        uint       `gorm:"primaryKey" json:"id"`
-	Email     string     `gorm:"uniqueIndex" json:"email"`
-	Name      string     `json:"name"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	Email      string     `gorm:"uniqueIndex" json:"email"`
+	Name       string     `json:"name"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 	Properties []Property `gorm:"foreignKey:UserID" json:"properties"`
 }
 
 type Property struct {
-	ID        uint       `gorm:"primaryKey" json:"id"`
-	UserID    uint       `json:"user_id"`
-	Address   string     `json:"address"`
-	City      string     `json:"city"`
-	ZipCode   string     `json:"zip_code"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	Permits   []Permit   `gorm:"foreignKey:PropertyID" json:"permits"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `json:"user_id"`
+	Address   string    `json:"address"`
+	City      string    `json:"city"`
+	ZipCode   string    `json:"zip_code"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Permits   []Permit  `gorm:"foreignKey:PropertyID" json:"permits"`
 }
 
 type Permit struct {
@@ -76,12 +76,12 @@ type Permit struct {
 }
 
 type PermitSubmission struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	PermitID        uint           `json:"permit_id"`
-	FileName        string         `json:"file_name"`
-	AnalysisStatus  string         `json:"analysis_status"`
-	ReportJSON      string         `json:"report_json"` // Store the JSON report string
-	CreatedAt       time.Time      `json:"created_at"`
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	PermitID       uint      `json:"permit_id"`
+	FileName       string    `json:"file_name"`
+	AnalysisStatus string    `json:"analysis_status"`
+	ReportJSON     string    `json:"report_json"` // Store the JSON report string
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 func InitDB() {
@@ -106,6 +106,11 @@ func InitDB() {
 
 	DB = db
 	log.Println("Database connection established")
+}
+
+// Shared HTTP client for agent requests
+var agentHTTPClient = &http.Client{
+	Timeout: 60 * time.Second, // Agent analysis can take a while
 }
 
 // --- Handlers ---
@@ -355,8 +360,7 @@ func main() {
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 
 		// Execute the request
-		client := &http.Client{Timeout: 60 * time.Second} // Agent analysis can take a while
-		resp, err := client.Do(req)
+		resp, err := agentHTTPClient.Do(req)
 		if err != nil {
 			log.Printf("Error calling agent: %v", err)
 			c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to communicate with AI agent"})
