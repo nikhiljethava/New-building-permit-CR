@@ -53,11 +53,7 @@ cd agent
 uv sync
 ```
 
-Copy the example environment file and fill in your GCP details:
-```bash
-cp .env.example .env
-# Edit .env and point GOOGLE_APPLICATION_CREDENTIALS to your service account JSON file.
-```
+Edit the Makefile and fill in the GCP details.
 
 Start the agent:
 ```bash
