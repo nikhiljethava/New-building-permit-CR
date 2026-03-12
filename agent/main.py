@@ -54,18 +54,18 @@ class ComplianceReport(BaseModel):
     approved_elements: List[str]
 
 @app.post("/analyze", response_model=ComplianceReport)
-def analyze_plan(file: UploadFile = File(...)):
+async def analyze_plan(file: UploadFile = File(...)):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
-    # Read the file content synchronously
-    content = file.file.read()
+    # Read the file content asynchronously
+    content = await file.read()
 
     # 1. Use Document AI to extract text (Optional, if we want to query RAG with text specifically)
     extracted_text = ai_service.extract_text_from_pdf(content)
 
     # 2. Use Gemini and Vertex RAG to analyze the plan (passing the raw PDF for Vision)
-    analysis_result = ai_service.analyze_plan_with_gemini(extracted_text, content)
+    analysis_result = await ai_service.analyze_plan_with_gemini(extracted_text, content)
 
     # Return structured JSON
     return ComplianceReport(**analysis_result)

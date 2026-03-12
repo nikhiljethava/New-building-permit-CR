@@ -15,6 +15,7 @@
 import os
 import json
 import logging
+import re
 from typing import List, Dict, Any
 
 from google.cloud import documentai
@@ -44,6 +45,8 @@ class PlanAnalysisResponse(BaseModel):
 
 class AIService:
     def __init__(self):
+        # Force the GenAI SDK to use Vertex AI endpoints for ADC support
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
         # Load environment variables
         self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
         self.location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
@@ -51,6 +54,7 @@ class AIService:
         self.docai_location = os.getenv("DOCUMENT_AI_LOCATION", "us")
         self.rag_corpus_name = os.getenv("VERTEX_RAG_CORPUS_NAME")
         self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
+        self.reasoning_engine_app_name = os.getenv("REASONING_ENGINE_APP_NAME")
 
         # Initialize Vertex AI
         if self.project_id:
@@ -110,7 +114,7 @@ class AIService:
              logger.error(f"Failed to retrieve context from RAG: {e}")
              return ""
 
-    def analyze_plan_with_gemini(self, extracted_text: str, pdf_bytes: bytes) -> Dict[str, Any]:
+    async def analyze_plan_with_gemini(self, extracted_text: str, pdf_bytes: bytes) -> Dict[str, Any]:
         """Use Gemini to analyze the plan and the images (multimodal) against the building codes."""
         if not self.project_id:
              logger.warning("GCP Project ID not configured. Using fallback mock response.")
@@ -145,11 +149,13 @@ class AIService:
 
              # Create runner with Vertex AI Memory and Session Stores
              # Assuming a default engine ID or creating one if needed for the app
+             agent_engine_id = self.reasoning_engine_app_name.split('/')[-1]
+             session_service = VertexAiSessionService(self.project_id, self.location, agent_engine_id=agent_engine_id)
              runner = Runner(
-                 app_name="building-plan-validation",
+                 app_name=self.reasoning_engine_app_name,
                  agent=agent,
-                 session_service=VertexAiSessionService(self.project_id, self.location),
-                 memory_service=VertexAiMemoryBankService(self.project_id, self.location)
+                 session_service=session_service,
+                 memory_service=VertexAiMemoryBankService(agent_engine_id=agent_engine_id)
              )
 
              # Create the document part
@@ -164,22 +170,48 @@ class AIService:
                  ]
              )
 
-             events = runner.run(
-                 user_id="default_user",
-                 session_id="default_session",
-                 new_message=new_message
-             )
+             # create a session
+             session = await session_service.create_session(app_name=self.reasoning_engine_app_name, user_id="default_user")
 
-             final_response_data = None
-             for event in events:
-                 if event.type == "run_completed":
-                     # ADK populates event.data with the generated response matching the output_schema
-                     final_response_data = event.data
+             final_text = ""
+             # Run asynchronously
+             async for event in runner.run_async(user_id="default_user", session_id=session.id, new_message=new_message):
+                 # Accumulate text from events
+                 if hasattr(event, 'text') and event.text:
+                     final_text += event.text
+                 elif isinstance(event, str):
+                     final_text += event
+                 elif hasattr(event, 'content') and event.content and event.content.parts:
+                     for part in event.content.parts:
+                         if part.text:
+                            final_text += part.text
 
-             if final_response_data:
-                 return final_response_data.model_dump()
-             else:
-                 logger.error("Agent run completed without returning valid response data.")
+             if not final_text:
+                  logger.error("No response text received from agent.")
+                  return self._get_mock_response()
+
+             try:
+                 # Improved JSON extraction matching the user sample pattern
+                 cleaned_text = final_text.strip()
+
+                 # Try to find JSON block if mixed with other text
+                 json_match = re.search(r'\{.*\}', cleaned_text, re.DOTALL)
+                 if json_match:
+                     potential_json = json_match.group(0)
+                     try:
+                         return json.loads(potential_json)
+                     except json.JSONDecodeError:
+                         pass
+
+                 # Markdown cleanup fallback
+                 if "```json" in cleaned_text:
+                     cleaned_text = cleaned_text.split("```json")[1].split("```")[0]
+                 elif "```" in cleaned_text:
+                     cleaned_text = cleaned_text.split("```")[1].split("```")[0]
+
+                 return json.loads(cleaned_text.strip())
+             except Exception as e:
+                 logger.error(f"Error parsing agent response: {e}. Raw: {final_text}")
                  return self._get_mock_response()
 
         except Exception as e:
