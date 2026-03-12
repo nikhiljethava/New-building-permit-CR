@@ -25,6 +25,7 @@ The project consists of three primary components:
     - Property management (auto-creates a default property for demo).
     - Permit application tracking.
     - PDF submission and real-time analysis results visualization.
+    - Interactive chat modal for follow-up questions on specific violations.
 
 ### B. API Gateway (Go Backend)
 - **Framework:** Gin Gonic.
@@ -34,6 +35,7 @@ The project consists of three primary components:
     - User authentication and property/permit management.
     - File upload handling and proxying to the Compliance Agent.
     - Persisting analysis results in the database.
+    - Proxying chat requests to the Compliance Agent.
     - CORS management for frontend requests.
 
 ### C. Compliance Agent (Python AI Service)
@@ -46,6 +48,7 @@ The project consists of three primary components:
 - **Responsibilities:**
     - Processing PDF files.
     - Extracting and analyzing building plan details.
+    - Handling interactive follow-up questions about violations using conversational AI.
     - Returning structured JSON compliance reports.
 
 ---
@@ -109,6 +112,7 @@ The system uses SQLite for simplicity in the current implementation.
 | `/api/permits/:id` | GET | Get permit details + history | N/A |
 | `/api/permits/:id` | DELETE| Delete a permit application | N/A |
 | `/api/analyze-plan` | POST | Upload PDF for AI analysis | `file: (Binary)`, `permit_id: (string)` |
+| `/api/chat` | POST | Proxy chat message to AI agent | `{ "messages": [...], "permit_id": "...", "violation": {...} }` |
 | `/health` | GET | Health check | N/A |
 
 ### 4.2. Compliance Agent (Python - Port 8000)
@@ -116,6 +120,7 @@ The system uses SQLite for simplicity in the current implementation.
 | Endpoint | Method | Description | Payload |
 |---|---|---|---|
 | `/analyze` | POST | Core AI analysis engine | `file: (Binary PDF)` |
+| `/chat` | POST | Conversational AI follow-up | `{ "messages": [...], "permit_id": "...", "violation": {...} }` |
 | `/health` | GET | Health check | N/A |
 
 **AI Response Format:**

@@ -19,6 +19,7 @@ This repository implements an agentic AI system designed to automate the review 
 - **Contextual Retrieval:** Employs Vertex AI RAG Engine to retrieve relevant sections from the California Building Standards Code (Title 24) and Santa Clara County local reach codes.
 - **Compliance Mapping:** Matches extracted plan data against retrieved regulatory text to identify specific violations or approved elements.
 - **Actionable Feedback:** Generates structured reports that include exact code sections, detailed descriptions of non-compliance, and specific suggestions for remediation.
+- **Agentic Memory & Context:** Utilizes Google ADK (Agent Development Kit) to maintain conversational state and long-term memory across sessions using Vertex AI Session and MemoryBank services.
 
 ---
 
@@ -63,4 +64,5 @@ This repository implements an agentic AI system designed to automate the review 
 1. **Automated Triage:** Upload a PDF and get an "Approved/Rejected" status in seconds.
 2. **Issue Tracking:** View a list of specific violations mapped to the legal code.
 3. **History Management:** Maintain a database of property permits and multiple submission versions.
-4. **Local Development:** Spin up the entire stack locally for testing and customization.
+4. **Interactive Clarification:** Ask follow-up questions about specific violations via an integrated chat interface powered by conversational AI.
+5. **Local Development:** Spin up the entire stack locally for testing and customization.
