@@ -29,6 +29,11 @@ from google.adk.runners import Runner
 from google.adk.sessions import VertexAiSessionService
 from google.adk.memory import VertexAiMemoryBankService
 from google.adk.tools import load_memory
+from google.adk.agents.remote_a2a_agent import AGENT_CARD_WELL_KNOWN_PATH
+from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
+
+from a2a.client import ClientConfig, ClientFactory
+from a2a.types import TransportProtocol
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -262,10 +267,33 @@ class AIService:
             if context:
                 system_instruction += f"\nContext regarding the violation:\n{context}\n"
 
+            # Setup A2A contractor agent call
+            contractor_agent_url = os.getenv("CONTRACTOR_AGENT_URL", "http://0.0.0.0:8081/a2a/contractor_agent/.well-known/agent-card.json")
+
+            client_factory = ClientFactory(
+                ClientConfig(
+                    # Specify supported transport mechanisms
+                    supported_transports=[TransportProtocol.http_json, TransportProtocol.jsonrpc],
+                    # Use client preferences for protocol negotiation
+                    use_client_preference=True,
+                )
+            )
+
+            contractor_agent = RemoteA2aAgent(
+                name="contractor_agent",
+                description=(
+                    "An agent that helps find licensed contractors for specific jobs in a given area. "
+                    "Use this agent when the user asks for help finding a contractor."
+                ),
+                agent_card=f"{contractor_agent_url}",
+                a2a_client_factory=client_factory,
+            )
+
             agent = LlmAgent(
                 name="chat_analyzer",
                 model=self.model_name,
-                instruction=system_instruction
+                instruction=system_instruction,
+                sub_agents=[contractor_agent]
             )
 
             agent_engine_id = self.reasoning_engine_app_name.split('/')[-1] if self.reasoning_engine_app_name else "default-engine"
@@ -282,9 +310,15 @@ class AIService:
             # The last message is the new user input
             new_user_message_text = request.messages[-1].content if request.messages else ""
 
-            # Use a session based on permit ID, or a default session if none provided
-            session_id_suffix = f"-{request.permit_id}" if request.permit_id else "-chat"
-            session = await session_service.create_session(app_name=self.reasoning_engine_app_name or "default-app", user_id="default_user")
+            # Use existing session or create a new one
+            list_sessions_response = await session_service.list_sessions(app_name=self.reasoning_engine_app_name or "default-app", user_id="default_user")
+
+            if list_sessions_response.sessions:
+                # Use the first available session
+                session = list_sessions_response.sessions[0]
+            else:
+                # Create a new session
+                session = await session_service.create_session(app_name=self.reasoning_engine_app_name or "default-app", user_id="default_user")
 
             # Just passing the last user message as new_message and trusting ADK memory / context.
             # However, for simplicity and adherence to standard OpenAI payload:
