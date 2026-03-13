@@ -7,13 +7,14 @@ The **Building Permit Compliance Portal** is an end-to-end system designed for r
 - Provide a user-friendly dashboard for residents to manage properties and permit applications.
 - Automate the preliminary review of building plans for compliance with local regulations.
 - Maintain a historical record of submissions and analysis reports for each permit application.
-- Scalable architecture using a Go-based API gateway and a Python-based AI agent.
+- Scalable architecture using a Go-based API gateway and A2A-compliant AI agents (Compliance & Contractor agents).
+- Interoperability between agents using the Agent-to-Agent (A2A) protocol.
 
 ---
 
 ## 2. System Architecture
 
-The project consists of three primary components:
+The project consists of several primary components communicating over standard HTTP and A2A protocols:
 
 ### A. Frontend (React)
 - **Framework:** Vite + React + TypeScript.
@@ -50,6 +51,17 @@ The project consists of three primary components:
     - Extracting and analyzing building plan details.
     - Handling interactive follow-up questions about violations using conversational AI.
     - Returning structured JSON compliance reports.
+
+### D. Contractor Agent (A2A AI Service)
+- **Framework:** FastAPI + `a2a-sdk`.
+- **AI Stack:** 
+    - **Vertex AI (Gemini 2.5 Flash):** For reasoning and tool use.
+    - **Google Search:** Tool for finding real-world contractor data.
+- **Observability:** OpenTelemetry.
+- **Responsibilities:**
+    - Finding licensed contractors based on specific job needs and location.
+    - Providing contact information and fit analysis.
+    - Exposing an A2A-compliant interface for interoperability with other agents.
 
 ---
 
@@ -121,6 +133,14 @@ The system uses SQLite for simplicity in the current implementation.
 |---|---|---|---|
 | `/analyze` | POST | Core AI analysis engine | `file: (Binary PDF)` |
 | `/chat` | POST | Conversational AI follow-up | `{ "messages": [...], "permit_id": "...", "violation": {...} }` |
+| `/health` | GET | Health check | N/A |
+
+### 4.3. Contractor Agent (Python - Port 8081)
+
+| Endpoint | Method | Description | Payload |
+|---|---|---|---|
+| `/a2a/contractor_agent/.well-known/agent-card.json` | GET | A2A Agent Card | N/A |
+| `/a2a/contractor_agent` | POST | A2A JSON-RPC Interface | JSON-RPC Payload |
 | `/health` | GET | Health check | N/A |
 
 **AI Response Format:**
