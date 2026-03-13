@@ -21,6 +21,11 @@ This repository implements an agentic AI system designed to automate the review 
 - **Actionable Feedback:** Generates structured reports that include exact code sections, detailed descriptions of non-compliance, and specific suggestions for remediation.
 - **Agentic Memory & Context:** Utilizes Google ADK (Agent Development Kit) to maintain conversational state and long-term memory across sessions using Vertex AI Session and MemoryBank services.
 
+### Agent Interoperability (A2A)
+- **Protocol Compliance:** Adheres to the Agent-to-Agent (A2A) Protocol Specification for seamless communication between different AI agents.
+- **Agent Discovery:** Exposes standardized "Agent cards" (`.well-known/agent-card.json`) that describe agent capabilities, security requirements, and endpoints.
+- **Inter-Agent Coordination:** Uses `a2a-sdk` to enable agents (e.g., Compliance Agent and Contractor Agent) to discover and interact with each other.
+
 ---
 
 ## 2. Technical Stack & Infrastructure Skills
