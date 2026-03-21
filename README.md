@@ -10,6 +10,11 @@ This is a monorepo containing three microservices:
 3. **AI Agent**: Python service using FastAPI, Google Cloud Document AI, Vertex AI RAG Engine, and Gemini. It leverages **Vertex AI Session** and **MemoryBank** for robust, persistent conversation history.
 4. **Agent Engine**: Vertex AI Agent Engine for deploying and scaling the AI components.
 
+## Documentation & Agent Skills
+
+- **`plan/`**: Contains the project specifications and DESIGN documentation.
+- **`.agents/`**: Contains the AI agent's skills and configurations.
+
 
 ## Prerequisites
 
@@ -88,6 +93,10 @@ make start
 3. The frontend will send the PDF to the Go API, which forwards it to the Python Agent.
 4. The Python Agent will extract text using Document AI, query the RAG engine for relevant codes, and use Gemini to generate a compliance report.
 5. The UI will display the results, including specific code violations and suggestions.
+
+## Built With
+
+This application was built with the assistance of [Stitch](https://stitch.withgoogle.com/) and [Jules](https://jules.google.com).
 
 ## Contributing
 
