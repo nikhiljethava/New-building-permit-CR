@@ -66,7 +66,21 @@ make start
 # Runs on http://127.0.0.1:8000
 ```
 
-### 2. Setup the Go API Gateway
+### 2. Setup the Contractor AI Agent
+
+Open a new terminal:
+```bash
+cd contractor-agent
+uv sync
+```
+
+Start the contractor agent:
+```bash
+make start
+# Runs on http://127.0.0.1:8001
+```
+
+### 3. Setup the Go API Gateway
 
 Open a new terminal:
 ```bash
@@ -76,7 +90,7 @@ make start
 # Runs on http://localhost:8080
 ```
 
-### 3. Setup the React Frontend
+### 4. Setup the React Frontend
 
 Open a new terminal:
 ```bash
