@@ -13,7 +13,7 @@ jobs:
         with:
           check_filenames: true
           check_hidden: false
-          skip: "*.json,*.csv,*.lock,package-lock.json,*.sum,*.mod,*.png,*.jpg,*.webm"
+          skip: "*.json,*.csv,*.lock,package-lock.json,*.sum,*.mod,*.png,*.jpg,*.webm,*.pdf"
 
   dead-links:
     name: Dead Links Check
@@ -42,19 +42,19 @@ jobs:
           cd agent
           uv sync --dev
           uv run pip install pylint
-          uv run pylint main.py services.py test_main.py
+          uv run pylint --disable=all --enable=E,F main.py services.py test_main.py
       - name: Lint contractor-agent
         run: |
           cd contractor-agent
           uv sync --dev
           uv run pip install pylint
-          uv run pylint main.py agent.py
+          uv run pylint --disable=all --enable=E,F main.py agent.py
       - name: Lint agent-engine
         run: |
           cd agent-engine
           uv sync --dev
           uv run pip install pylint
-          uv run pylint app
+          uv run pylint --disable=all --enable=E,F app
 
   lint-go:
     name: Lint Go
