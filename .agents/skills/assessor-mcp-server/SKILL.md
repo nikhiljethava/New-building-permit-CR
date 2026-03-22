@@ -9,7 +9,7 @@ This skill implements a fake Santa Clara County Assessor API exposed as an MCP (
 - `get_setback_requirements(zoning_code: str) -> dict`: Returns setback requirements, lot coverage limits, and height limits for a given zoning code.
 
 ## Integration
-The AI Agent (`plan_analyzer` in `agent/services.py`) includes these tools in its context by instantiating an `McpToolset` connected to this server's Streamable HTTP endpoint (`http://0.0.0.0:8002/stream`).
+The AI Agent (`plan_analyzer` in `agent/services.py`) includes these tools in its context by instantiating an `McpToolset` connected to this server's SSE endpoint (`http://0.0.0.0:8002/sse`).
 
 ## Execution
 ```bash
