@@ -19,12 +19,14 @@ import inspect
 import json
 import logging
 import warnings
+# pylint: disable=no-name-in-module
 from typing import Any
 
 import click
 import google.auth
 import vertexai
 from google.cloud import resourcemanager_v3
+# pylint: disable=no-member
 from google.iam.v1 import iam_policy_pb2, policy_pb2
 from vertexai._genai import _agent_engines_utils
 from vertexai._genai.types import AgentEngine, AgentEngineConfig, IdentityType
@@ -429,4 +431,4 @@ def deploy_agent_engine_app(
 
 
 if __name__ == "__main__":
-    deploy_agent_engine_app()
+    deploy_agent_engine_app()  # pylint: disable=no-value-for-parameter
