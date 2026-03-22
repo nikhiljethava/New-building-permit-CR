@@ -31,6 +31,17 @@ export function PermitDetail() {
   const [permit, setPermit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this permit application?')) {
+      try {
+        await axios.delete(`${API_URL}/api/permits/${id}`);
+        navigate('/');
+      } catch (error) {
+        console.error('Failed to delete permit', error);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -85,11 +96,21 @@ export function PermitDetail() {
             >
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
-            <h1 className="font-['Inter'] font-bold tracking-tight text-slate-900 dark:text-slate-100 text-lg">PermitHub</h1>
+            <div className="flex items-center gap-2">
+              <img src="/scc_logo.jpg" alt="SCC Logo" className="h-6 w-6 object-contain rounded-full bg-white shadow-sm" />
+              <h1 className="font-['Inter'] font-bold tracking-tight text-slate-900 dark:text-slate-100 text-base sm:text-lg">Santa Clara County</h1>
+            </div>
           </div>
           <div className="flex gap-4">
-            <span className="material-symbols-outlined text-slate-500 cursor-pointer">share</span>
-            <span className="material-symbols-outlined text-slate-500 cursor-pointer">notifications</span>
+            <button
+              onClick={handleDelete}
+              className="material-symbols-outlined text-slate-500 hover:text-red-600 transition-colors"
+              title="Delete Permit"
+            >
+              delete
+            </button>
+            <span className="material-symbols-outlined text-slate-500 cursor-pointer hover:text-slate-800">share</span>
+            <span className="material-symbols-outlined text-slate-500 cursor-pointer hover:text-slate-800">notifications</span>
           </div>
         </div>
       </header>

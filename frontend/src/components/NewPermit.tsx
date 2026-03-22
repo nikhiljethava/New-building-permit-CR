@@ -94,8 +94,9 @@ export function NewPermit() {
             </button>
             <h1 className="font-['Inter'] font-bold tracking-tight text-slate-900 text-lg">New Application</h1>
           </div>
-          <div className="text-blue-700 font-black text-xl uppercase tracking-widest">
-            PermitHub
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm sm:text-base font-black text-blue-800 uppercase tracking-tight">Santa Clara County</h1>
+            <img src="/scc_logo.jpg" alt="SCC Logo" className="h-6 w-6 object-contain rounded-full bg-white shadow-sm" />
           </div>
         </div>
       </header>

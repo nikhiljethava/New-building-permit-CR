@@ -178,7 +178,10 @@ export function DocumentCenter() {
         <div className="flex items-center justify-between px-6 h-16 w-full">
           <div className="flex items-center gap-4">
             <span onClick={() => navigate(`/permit/${id}`)} className="material-symbols-outlined text-slate-900 dark:text-slate-100 cursor-pointer">arrow_back</span>
-            <h1 className="font-['Inter'] font-bold tracking-tight text-slate-900 dark:text-slate-100 text-xl">PermitHub</h1>
+            <div className="flex items-center gap-2">
+              <img src="/scc_logo.jpg" alt="SCC Logo" className="h-6 w-6 object-contain rounded-full bg-white shadow-sm" />
+              <h1 className="font-['Inter'] font-bold tracking-tight text-slate-900 dark:text-slate-100 text-base sm:text-xl">Santa Clara County</h1>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-slate-500 dark:text-slate-400">notifications</span>

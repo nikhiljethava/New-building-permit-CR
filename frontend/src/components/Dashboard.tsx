@@ -28,6 +28,18 @@ export function Dashboard() {
   const navigate = useNavigate();
 
   const [permits, setPermits] = useState<any[]>([]);
+
+  const handleDeletePermit = async (permitId: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigating to detail page
+    if (window.confirm('Are you sure you want to delete this permit application?')) {
+      try {
+        await axios.delete(`${API_URL}/api/permits/${permitId}`);
+        setPermits(permits.filter((p) => p.id !== permitId));
+      } catch (error) {
+        console.error('Failed to delete permit', error);
+      }
+    }
+  };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -157,7 +169,12 @@ export function Dashboard() {
             <button className="text-blue-700 dark:text-blue-400 active:scale-95 duration-200">
               <span className="material-symbols-outlined">menu</span>
             </button>
-            <h1 className="text-xl font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest font-['Inter']">PermitHub</h1>
+            <div className="flex items-center gap-2">
+              <img src="/scc_logo.jpg" alt="Santa Clara County Logo" className="h-8 w-8 object-contain rounded-full bg-white shadow-sm" />
+              <h1 className="text-lg sm:text-xl font-black text-blue-800 dark:text-blue-400 uppercase tracking-tight font-['Inter']">
+                Santa Clara County
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button className="text-slate-500 dark:text-slate-400 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full active:scale-95 duration-200">
@@ -235,9 +252,18 @@ export function Dashboard() {
                                   <span className="text-[10px] font-mono font-bold text-tertiary mb-1">ID: {getDisplayId(permit.id)}</span>
                                   <h4 className="text-lg font-bold text-on-surface line-clamp-1">{permit.title}</h4>
                                 </div>
-                                <span className={`shrink-0 px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${getStatusLabelStyles(permit.status)}`}>
+                                <div className="flex flex-col items-end gap-2">
+                                  <span className={`shrink-0 px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${getStatusLabelStyles(permit.status)}`}>
                                     {getStatusLabel(permit.status)}
-                                </span>
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleDeletePermit(permit.id, e)}
+                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors active:scale-95 duration-200"
+                                    title="Delete Permit"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                  </button>
+                                </div>
                               </div>
 
                               <div className="flex items-center gap-2 text-on-surface-variant mb-4">
