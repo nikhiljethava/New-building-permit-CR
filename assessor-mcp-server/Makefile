@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+PROJECT_ID ?= $(shell gcloud config get-value project)
+PROJECT_NUMBER ?= $(shell gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
+REGION ?= us-central1
+
 .PHONY: install start clean deploy
 
 install:
@@ -24,4 +28,7 @@ clean:
 	rm -rf .venv
 
 deploy:
-	gcloud builds submit --config .cloudbuild/deploy.yaml --substitutions _COMMIT_SHA=$(shell git rev-parse --short HEAD) .
+	export REGION=${REGION} ;\
+	export PROJECT_ID=${PROJECT_ID} ;\
+	export PROJECT_NUMBER=${PROJECT_NUMBER} ;\
+	gcloud builds submit --config .cloudbuild/deploy.yaml --region=${REGION} --substitutions _COMMIT_SHA=$(shell git rev-parse --short HEAD),_REGION=${REGION} .

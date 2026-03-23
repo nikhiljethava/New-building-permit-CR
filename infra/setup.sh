@@ -37,6 +37,9 @@ APIS=(
   "storage.googleapis.com"
   "cloudresourcemanager.googleapis.com"
   "telemetry.googleapis.com"
+  "artifactregistry.googleapis.com"
+  "run.googleapis.com"
+  "cloudbuild.googleapis.com"
 )
 
 for api in "${APIS[@]}"; do
@@ -77,6 +80,19 @@ if ! gsutil ls -b "gs://${DATA_BUCKET}" >/dev/null 2>&1; then
   gsutil mb -l "$GOOGLE_CLOUD_LOCATION" "gs://${DATA_BUCKET}"
 else
   echo "GCS bucket $DATA_BUCKET already exists."
+fi
+
+# 5. Create Artifact Registry Repository if it doesn't exist
+REPOSITORY_NAME="building-permit"
+if ! gcloud artifacts repositories describe "$REPOSITORY_NAME" --location="$GOOGLE_CLOUD_LOCATION" --project="$GOOGLE_CLOUD_PROJECT" >/dev/null 2>&1; then
+  echo "Creating Artifact Registry repository: $REPOSITORY_NAME in $GOOGLE_CLOUD_LOCATION..."
+  gcloud artifacts repositories create "$REPOSITORY_NAME" \
+    --repository-format=docker \
+    --location="$GOOGLE_CLOUD_LOCATION" \
+    --project="$GOOGLE_CLOUD_PROJECT" \
+    --description="Docker repository for building-permit images"
+else
+  echo "Artifact Registry repository $REPOSITORY_NAME already exists."
 fi
 
 echo "Setup script completed successfully."
