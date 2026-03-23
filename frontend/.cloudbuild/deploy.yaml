@@ -68,6 +68,7 @@ steps:
       - "300"
       - "--cpu-boost"
       - "--session-affinity"
+      - "--labels=appid=building-permit"
 
 substitutions:
   _REGION: us-central1

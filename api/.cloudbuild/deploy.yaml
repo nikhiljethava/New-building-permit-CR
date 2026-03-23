@@ -78,6 +78,7 @@ steps:
       - "--session-affinity"
       - "--add-volume=name=db-vol,type=cloud-storage,bucket=${_DB_BUCKET_NAME}"
       - "--add-volume-mount=volume=db-vol,mount-path=/app/data"
+      - "--labels=appid=building-permit"
 
 substitutions:
   _REGION: us-central1 # This can be overridden by GOOGLE_CLOUD_LOCATION if passed as substitution
