@@ -1,5 +1,12 @@
 # Building Plan Compliance Checker
 
+[![CI](https://github.com/srinandan/building-permit/actions/workflows/ci.yml/badge.svg)](https://github.com/srinandan/building-permit/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/srinandan/building-permit)](./LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/srinandan/building-permit?filename=api/go.mod)](./api/go.mod)
+[![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](./agent/pyproject.toml)
+[![Node Version](https://img.shields.io/badge/node-18+-green.svg)](./frontend/package.json)
+[![CodeQL](https://github.com/srinandan/building-permit/actions/workflows/codeql.yml/badge.svg)](https://github.com/srinandan/building-permit/actions/workflows/codeql.yml)
+
 An Agentic application to review building plans against the California Building Standards Code and San Paloma County reach codes.
 
 ## Architecture
