@@ -51,54 +51,35 @@ After running the automated setup, you need to manually create a Document AI Pro
 
 ## Local Development
 
-### 1. Setup the Python AI Agent
+### 1. Installation
 
+Install dependencies for all components:
 ```bash
-cd agent
-uv sync
+make install
 ```
 
-Edit the Makefile and fill in the GCP details.
+### 2. Execution
 
-Start the agent:
+Start all microservices in the background:
 ```bash
-make start
-# Runs on http://127.0.0.1:8000
+make all
 ```
 
-### 2. Setup the Contractor AI Agent
-
-Open a new terminal:
+Stop all background microservices:
 ```bash
-cd contractor-agent
-uv sync
+make stop
 ```
 
-Start the contractor agent:
-```bash
-make start
-# Runs on http://127.0.0.1:8001
-```
+### 3. Individual Component Setup
 
-### 3. Setup the Go API Gateway
-
-Open a new terminal:
-```bash
-cd api
-go mod download
-make start
-# Runs on http://localhost:8080
-```
-
-### 4. Setup the React Frontend
-
-Open a new terminal:
-```bash
-cd frontend
-npm install
-make start
-# Runs on http://localhost:3000
-```
+For detailed setup, configuration, and individual execution of each component, refer to their respective READMEs:
+- **[Frontend](./frontend/README.md)**: React application setup and styling.
+- **[API Gateway](./api/README.md)**: Go backend and user management.
+- **[Compliance Agent](./agent/README.md)**: Python AI analysis and RAG setup.
+- **[Contractor Agent](./contractor-agent/README.md)**: A2A communication and discovery.
+- **[Assessor MCP Server](./assessor-mcp-server/README.md)**: Model Context Protocol tools.
+- **[Agent Engine](./agent-engine/README.md)**: Vertex AI deployment utilities.
+- **[Infrastructure](./infra/README.md)**: Automated GCP provisioning.
 
 ## Usage
 
@@ -123,17 +104,3 @@ This demo is *NOT* endorsed by Google or Google Cloud. The repo is intended for 
 ## License
 
 This project is licensed under the terms of the [LICENSE](./LICENSE) file.
-
-### 5. Setup the Assessor MCP Server
-
-Open a new terminal:
-```bash
-cd assessor-mcp-server
-uv sync
-```
-
-Start the MCP server:
-```bash
-make start
-# Runs on http://127.0.0.1:8002
-```

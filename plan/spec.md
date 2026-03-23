@@ -39,7 +39,15 @@ The project consists of several primary components communicating over standard H
     - Proxying chat requests to the Compliance Agent.
     - CORS management for frontend requests.
 
-### C. Compliance Agent (Python AI Service)
+### C. Vertex AI Reasoning Engine (Shared Services)
+- **Deployment Strategy:** `agent-engine/` container.
+- **Tech Stack:** Python + Google ADK + Vertex AI SDK.
+- **Responsibilities:**
+    - **Session Management:** Provides a centralized `VertexAiSessionService` for persistent, scalable conversation history across all project agents.
+    - **Memory Bank:** Implements a `VertexAiMemoryBankService` for long-term storage and retrieval of regulatory context, past violations, and interaction history.
+    - **Orchestration:** Acts as the host for tool specifications and schemas used in reasoning and agent-to-agent interactions.
+
+### D. Compliance Agent (Python AI Service)
 - **Framework:** FastAPI.
 - **AI Stack:** 
     - **Vertex AI (Gemini 1.5 Pro/Flash):** For visual and text analysis of building plans.
@@ -188,5 +196,5 @@ A `Makefile` in each directory handles build and run commands.
 - **Framework:** FastAPI + `mcp.server.fastmcp`.
 - **Responsibilities:**
     - Exposing a Model Context Protocol (MCP) server over SSE.
-    - Providing fake Santa Clara County data to the AI agents for context via tools.
+    - Providing fake San Paloma County data to the AI agents for context via tools.
     - Implementing `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools.
