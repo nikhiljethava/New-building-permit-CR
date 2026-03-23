@@ -12,7 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=import-error
-from .agent import app
+FROM python:3.12-slim
 
-__all__ = ["app"]
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Copy the project into the image
+ADD . /app
+
+# Sync the project
+WORKDIR /app
+RUN uv sync --frozen
+
+# Use the virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8002
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]

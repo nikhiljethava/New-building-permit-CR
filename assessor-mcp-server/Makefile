@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=import-error
-from .agent import app
+.PHONY: install start clean
 
-__all__ = ["app"]
+install:
+	uv sync
+
+start:
+	uv run uvicorn main:app --reload --port 8002
+
+clean:
+	rm -rf .venv
