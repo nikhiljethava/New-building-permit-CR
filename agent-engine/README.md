@@ -1,22 +1,25 @@
-# Agent Engine Deployment Tool
+# Agent Engine Shared Services
 
-This directory contains utilities and configuration for deploying AI agents to the **Vertex AI Agent Engine**. It is a specialized toolset for packaging Python-based agents (like those using Google ADK) into scalable, managed environments on Google Cloud.
+This directory contains the deployment logic for the **Vertex AI Reasoning Engine** (also known as Agent Engine) that serves as the shared infrastructure for the Building Permit Compliance Portal.
 
-## Features
-- **Managed Deployment:** Automates the creation and updating of Agent Engines on Vertex AI.
-- **Agent Identity:** Supports per-agent IAM access control via Agent Identity (Preview).
-- **Environment & Secrets:** Handles injection of environment variables and Secret Manager secrets into the agent's runtime.
-- **Resource Management:** Configures CPU, memory, and instance scaling (min/max instances).
-- **Telemetry Integration:** Automatically enables OpenTelemetry for distributed tracing and monitoring.
+## Purpose
+
+Instead of deploying individual standalone agents, this component deploys a specialized container to Vertex AI that enables **all agents** in this project to leverage centralized, high-performance services:
+
+- **Vertex AI Session Management:** Provides persistent, scalable conversation session storage across the entire microservice ecosystem.
+- **Vertex AI Memorybank:** Enables a long-term "Memory Bank" service that allows agents to retrieve and reference past interactions, violations, and decisions.
+- **Unified Tool Specs:** Acts as the registry for method specifications and schemas used by the reasoning engine to orchestrate agent-to-tool and agent-to-agent interactions.
+
+By centralizing these services in the `agent-engine`, we ensure that the **Compliance Agent**, **Contractor Agent**, and **API Gateway** all share a consistent view of the user's history and regulatory context.
 
 ## Tech Stack
 - **Language:** Python
 - **SDK:** `vertexai` (Google Cloud Vertex AI SDK)
-- **Framework:** Google ADK (Agent Development Kit) compatible.
+- **Framework:** Google ADK (Agent Development Kit)
 
 ## Usage
 
-This tool is primarily invoked via the `Makefile` or directly as a Python module to deploy an agent.
+The `agent-engine` is deployed once as part of the infrastructure setup to provide the `REASONING_ENGINE_APP_NAME` required by the other microservices.
 
 ### Prerequisites
 - Python 3.10+
@@ -24,21 +27,13 @@ This tool is primarily invoked via the `Makefile` or directly as a Python module
 - Google Cloud project with Vertex AI API enabled.
 
 ### Deployment
-To deploy the default agent engine application:
+To deploy or update the shared Reasoning Engine:
 ```bash
 make deploy
 ```
 
-This runs the `app.app_utils.deploy` module, which performs the following:
-1.  Imports the agent entrypoint.
-2.  Generates the class method specifications for the agent's operations.
-3.  Uploads source packages and requirements.
-4.  Configures the Vertex AI Agent Engine resource.
-5.  Wait for the deployment to complete and provides a URL to the Vertex AI Console Playground.
-
-## Configuration
-The deployment can be customized using command-line flags or environment variables (see `app/app_utils/deploy.py` for all available options). Common configurations include:
-- `--project`: GCP Project ID.
-- `--location`: GCP Region (e.g., `us-central1`).
-- `--display-name`: The name shown in the Vertex AI console.
-- `--min-instances` / `--max-instances`: Auto-scaling bounds.
+This runs the deployment utility which:
+1.  Packages the shared ADK application logic.
+2.  Uploads the source to Vertex AI.
+3.  Configures the Reasoning Engine resource with appropriate CPU, memory, and scaling policies.
+4.  Outputs the **Reasoning Engine ID**, which should be configured in the `.env` files of the other agents.
