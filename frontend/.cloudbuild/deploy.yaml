@@ -75,7 +75,7 @@ substitutions:
   _ARTIFACT_REGISTRY_REPO_NAME: building-permit
   _CONTAINER_NAME: building-permit-frontend
   _COMMIT_SHA: latest
-  _API_URL: http://localhost:8080 # Default for local, should be overridden in Cloud Build trigger
+  _API_URL: https://building-permit-api-${PROJECT_NUMBER}.${_REGION}.run.app
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}

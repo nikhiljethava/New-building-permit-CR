@@ -24,7 +24,9 @@ COPY . .
 RUN npm run build
 
 # Expose port 3000 (which server.js uses by default)
-EXPOSE 3000
+EXPOSE 8080
+
+ENV PORT=8080
 
 # Start the Express server
 CMD ["node", "server.js"]
