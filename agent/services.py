@@ -33,8 +33,8 @@ from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from google.adk.agents.remote_a2a_agent import AGENT_CARD_WELL_KNOWN_PATH
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
 
-from a2a.client import ClientConfig, ClientFactory
-from a2a.types import TransportProtocol
+
+from google.adk.integrations.agent_registry import AgentRegistry
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -154,16 +154,38 @@ class AIService:
                      callback_context._invocation_context.session
                  )
 
-             assessor_mcp_url = os.getenv("ASSESSOR_MCP_SERVER_URL", "http://127.0.0.1:8002")
-             mcp_toolset = McpToolset(
-                 connection_params=StreamableHTTPConnectionParams(url=assessor_mcp_url)
-             )
+             registry = AgentRegistry(project_id=self.project_id, location=self.location)
+             servers = registry.list_mcp_servers()
+             mcp_server_name = None
+             for s in servers.get("mcpServers", []):
+                 if s.get("displayName") == "Assessor MCP Server":
+                     print("Found Assessor MCP Server: ", s["name"])
+                     mcp_server_name = s["name"]
+                     break
+
+             if not mcp_server_name:
+                 raise ValueError("Assessor MCP Server not found in Agent Registry")
+
+             mcp_toolset = registry.get_mcp_toolset(mcp_server_name)
+
+             # Lookup ContractorAgent
+             agents_list = registry.list_agents()
+             contractor_agent = None
+             for a in agents_list.get("agents", []):
+                 if a.get("displayName") == "ContractorAgent":
+                     print("Found ContractorAgent: ", a["name"])
+                     contractor_agent = registry.get_remote_a2a_agent(a["name"])
+                     break
+
+             if not contractor_agent:
+                 raise ValueError("ContractorAgent not found in Agent Registry")
 
              agent = LlmAgent(
                  name="plan_analyzer",
                  model=self.model_name,
                  instruction=prompt,
                  tools=[load_memory, mcp_toolset],
+                 sub_agents=[contractor_agent],
                  output_schema=PlanAnalysisResponse,
                  after_agent_callback=auto_save_session_to_memory_callback
              )
@@ -274,26 +296,18 @@ class AIService:
                 system_instruction += f"\nContext regarding the violation:\n{context}\n"
 
             # Setup A2A contractor agent call
-            contractor_agent_url = os.getenv("CONTRACTOR_AGENT_URL", "http://0.0.0.0:8081/a2a/contractor_agent/.well-known/agent-card.json")
+            # Setup A2A contractor agent call from Registry
+            registry = AgentRegistry(project_id=self.project_id, location=self.location)
+            agents_list = registry.list_agents()
+            contractor_agent = None
+            for a in agents_list.get("agents", []):
+                if a.get("displayName") == "ContractorAgent":
+                    logger.info(f"Found ContractorAgent: {a['name']}")
+                    contractor_agent = registry.get_remote_a2a_agent(a["name"])
+                    break
 
-            client_factory = ClientFactory(
-                ClientConfig(
-                    # Specify supported transport mechanisms
-                    supported_transports=[TransportProtocol.http_json, TransportProtocol.jsonrpc],
-                    # Use client preferences for protocol negotiation
-                    use_client_preference=True,
-                )
-            )
-
-            contractor_agent = RemoteA2aAgent(
-                name="contractor_agent",
-                description=(
-                    "An agent that helps find licensed contractors for specific jobs in a given area. "
-                    "Use this agent when the user asks for help finding a contractor."
-                ),
-                agent_card=f"{contractor_agent_url}",
-                a2a_client_factory=client_factory,
-            )
+            if not contractor_agent:
+                raise ValueError("ContractorAgent not found in Agent Registry")
 
             agent = LlmAgent(
                 name="chat_analyzer",
