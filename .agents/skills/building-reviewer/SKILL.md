@@ -39,7 +39,7 @@ This repository implements an agentic AI system designed to automate the review 
 
 ### Assessor MCP Server (Data Retrieval)
 - **MCP Protocol:** Implements the Model Context Protocol (MCP) to expose property data as structured tools.
-- **Tool Integration:** Provides `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools via an SSE (Server-Sent Events) connection.
+- **Tool Integration:** Provides `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools via a Streamable HTTP connection.
 - **Data Management:** Capabilities to `add_parcel`, `rezone_address`, and `add_zoning_rule` to the county's assessor database.
 
 ### Microservices Architecture

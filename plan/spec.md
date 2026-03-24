@@ -21,6 +21,7 @@ The project consists of several primary components communicating over standard H
 - **Styling:** TailwindCSS with Lucide-React icons.
 - **State Management:** Zustand.
 - **API Communication:** Axios.
+- **Observability:** OpenTelemetry.
 - **Key Features:**
     - User Login (email-based).
     - Property management (auto-creates a default property for demo).
@@ -60,7 +61,7 @@ The project consists of several primary components communicating over standard H
     - Handling interactive follow-up questions about violations using conversational AI.
     - Returning structured JSON compliance reports.
 
-### D. Contractor Agent (A2A AI Service)
+### E. Contractor Agent (A2A AI Service)
 - **Framework:** FastAPI + `a2a-sdk`.
 - **AI Stack:** 
     - **Vertex AI (Gemini 2.5 Flash):** For reasoning and tool use.
@@ -151,6 +152,13 @@ The system uses SQLite for simplicity in the current implementation.
 | `/a2a/contractor_agent` | POST | A2A JSON-RPC Interface | JSON-RPC Payload |
 | `/health` | GET | Health check | N/A |
 
+### 4.4. Assessor MCP Server (Python - Port 8002)
+
+| Endpoint | Method | Description | Payload |
+|---|---|---|---|
+| `/` | GET/POST | Streamable HTTP Endpoint | JSON Payload |
+| `/health` | GET | Health check | N/A |
+
 **AI Response Format:**
 ```json
 {
@@ -192,9 +200,10 @@ Dockerfiles are provided for each service:
 
 A `Makefile` in each directory handles build and run commands.
 
-### E. Assessor MCP Server (Python Service)
+### F. Assessor MCP Server (Python Service)
 - **Framework:** FastAPI + `mcp.server.fastmcp`.
+- **Observability:** OpenTelemetry.
 - **Responsibilities:**
-    - Exposing a Model Context Protocol (MCP) server over SSE.
+    - Exposing a Model Context Protocol (MCP) server over Streamable HTTP.
     - Providing fake San Paloma County data to the AI agents for context via tools.
     - Implementing `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools.
