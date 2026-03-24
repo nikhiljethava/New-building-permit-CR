@@ -22,7 +22,7 @@ start:
 	export VERTEX_RAG_CORPUS_NAME=${VERTEX_RAG_CORPUS_NAME} ;\
 	export REASONING_ENGINE_APP_NAME=${REASONING_ENGINE_APP_NAME} ;\
 	export GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME} ;\
-	uv run uvicorn main:app --reload --port 8000
+	uv run uvicorn main:app --reload --port 8080
 
 build:
 	@echo "Python builds are typically just dependencies, use 'make install'"
@@ -31,4 +31,5 @@ clean:
 	rm -rf .venv
 
 deploy:
-	gcloud builds submit --config .cloudbuild/deploy.yaml --substitutions _COMMIT_SHA=$(shell git rev-parse --short HEAD) .
+	export GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION} ;\
+	gcloud builds submit --config .cloudbuild/deploy.yaml --region=${GOOGLE_CLOUD_LOCATION} --substitutions _COMMIT_SHA=$(shell git rev-parse --short HEAD),_REGION=${GOOGLE_CLOUD_LOCATION} .

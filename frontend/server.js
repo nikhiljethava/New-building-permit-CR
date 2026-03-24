@@ -28,9 +28,20 @@ const PORT = process.env.PORT || 3000;
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
-// Handle React Router SPA routing: send all unmatched requests to index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+import fs from 'fs';
+
+// Handle React Router SPA routing: send all unmatched requests to index.html with injected VITE_API_URL
+app.get('/{*splat}', (req, res) => {
+  const indexPath = path.join(distPath, 'index.html');
+  try {
+    let html = fs.readFileSync(indexPath, 'utf-8');
+    const apiUrl = process.env.VITE_API_URL || 'http://localhost:8080';
+    // Inject the variable into the head tag
+    html = html.replace('</head>', `<script>window.VITE_API_URL="${apiUrl}"</script></head>`);
+    res.send(html);
+  } catch (err) {
+    res.status(500).send("Internal Server Error: Unable to read index.html");
+  }
 });
 
 app.listen(PORT, () => {

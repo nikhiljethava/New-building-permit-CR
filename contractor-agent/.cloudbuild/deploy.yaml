@@ -14,16 +14,21 @@
 
 steps:
   # Build and Push
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args: ['-c', 'docker pull ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest || exit 0']
   - name: "gcr.io/cloud-builders/docker"
     env:
       - 'DOCKER_BUILDKIT=1'
     args:
       [
         "build",
-        "--build-arg",
-        "PROJECT_ID=${PROJECT_ID}",
         "-t",
         "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest",
+        "--cache-from",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest",
         ".",
       ]
   - name: "gcr.io/cloud-builders/docker"
@@ -31,6 +36,12 @@ steps:
       [
         "push",
         "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest",
       ]
 
   # Deploy to Staging
@@ -48,7 +59,7 @@ steps:
       - "--image"
       - "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}"
       - "--port"
-      - "3000"
+      - "8080"
       - "--cpu"
       - "1000m"
       - "--memory"
@@ -58,9 +69,9 @@ steps:
       - "--service-account"
       - "build-permit-sa@${PROJECT_ID}.iam.gserviceaccount.com"
       - "--set-env-vars"
-      - 'VITE_API_URL=${_API_URL},GOOGLE_CLOUD_LOCATION=${_REGION}'
+      - 'GOOGLE_CLOUD_LOCATION=${_REGION},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GEMINI_MODEL_NAME=${_GEMINI_MODEL_NAME}'
       - "--startup-probe"
-      - 'initialDelaySeconds=30,tcpSocket.port=3000,timeoutSeconds=240,periodSeconds=240,failureThreshold=1'
+      - 'initialDelaySeconds=30,tcpSocket.port=8080,timeoutSeconds=240,periodSeconds=240,failureThreshold=1'
       - "--max-instances"
       - "1"
       - "--allow-unauthenticated"
@@ -68,19 +79,23 @@ steps:
       - "300"
       - "--cpu-boost"
       - "--session-affinity"
+      - "--ingress"
+      - "internal-and-cloud-load-balancing"
       - "--labels=appid=building-permit"
 
 substitutions:
-  _REGION: us-central1
+  _REGION: ${_REGION}
   _ARTIFACT_REGISTRY_REPO_NAME: building-permit
-  _CONTAINER_NAME: building-permit-frontend
-  _COMMIT_SHA: latest
-  _API_URL: https://building-permit-api-${PROJECT_NUMBER}.${_REGION}.run.app
+  _CONTAINER_NAME: building-permit-contractor-agent
+  _COMMIT_SHA: ${_COMMIT_SHA}
+  _GEMINI_MODEL_NAME: gemini-2.5-flash
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest
 
 options:
+  pool:
   logging: CLOUD_LOGGING_ONLY
   substitutionOption: ALLOW_LOOSE
   requestedVerifyOption: VERIFIED

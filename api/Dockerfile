@@ -13,23 +13,27 @@
 # limitations under the License.
 
 # Build stage
-FROM golang:1.24-alpine AS build
+FROM golang:1.25-alpine AS build
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 # CGO_ENABLED=1 is required for go-sqlite3
 RUN apk add --no-cache gcc musl-dev
-RUN CGO_ENABLED=1 GOOS=linux go build -o api-server .
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=true -a -gcflags='all="-l"' -ldflags='-s -w -extldflags "-static"' -o api-server .
 
 # Run stage
-FROM alpine:latest
-WORKDIR /app
-RUN apk add --no-cache ca-certificates tzdata sqlite
-COPY --from=build /app/api-server .
+FROM gcr.io/distroless/static-debian11:debug-nonroot@sha256:55716e80a7d4320ce9bc2dc8636fc193b418638041b817cf3306696bd0f975d1
+LABEL org.opencontainers.image.url='https://github.com/srinandan/building-permit/api' \
+    org.opencontainers.image.documentation='https://github.com/srinandan/building-permit/api' \
+    org.opencontainers.image.source='https://github.com/srinandan/building-permit/api' \
+    org.opencontainers.image.vendor='Google LLC' \
+    org.opencontainers.image.licenses='Apache-2.0'
+
+COPY --from=build /app/api-server /usr/local/bin/api-server
 EXPOSE 8080
 ENV PORT=8080
 ENV DB_NAME=/app/data/building_plans.db
 # Create a volume for the sqlite database to persist
 VOLUME ["/app/data"]
-CMD ["./api-server"]
+ENTRYPOINT ["api-server"]

@@ -14,9 +14,12 @@
 
 steps:
   # Build and Push
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args: ['-c', 'docker pull ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest || exit 0']
   - name: "gcr.io/cloud-builders/docker"
     env:
-      - "DOCKER_BUILDKIT=1"
+      - 'DOCKER_BUILDKIT=1'
     args:
       [
         "build",
@@ -25,6 +28,8 @@ steps:
         "-t",
         "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}",
         "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest",
+        "--cache-from",
         "${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:latest",
         ".",
       ]
@@ -66,9 +71,9 @@ steps:
       - "--service-account"
       - "build-permit-sa@${PROJECT_ID}.iam.gserviceaccount.com"
       - "--set-env-vars"
-      - "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},DB_NAME=/app/data/building_plans.db,AGENT_URL=${_AGENT_URL}"
+      - 'GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},DB_NAME=/app/data/building_plans.db,AGENT_URL=${_AGENT_URL},CONTRACTOR_AGENT_URL=${_CONTRACTOR_AGENT_URL}'
       - "--startup-probe"
-      - "initialDelaySeconds=30,tcpSocket.port=8080,timeoutSeconds=240,periodSeconds=240,failureThreshold=1"
+      - 'initialDelaySeconds=30,tcpSocket.port=8080,timeoutSeconds=240,periodSeconds=240,failureThreshold=1'
       - "--max-instances"
       - "1"
       - "--allow-unauthenticated"
@@ -76,19 +81,19 @@ steps:
       - "300"
       - "--cpu-boost"
       - "--session-affinity"
-      - "--add-volume=name=db-vol,type=cloud-storage,bucket=${_DB_BUCKET_NAME}"
-      - "--add-volume-mount=volume=db-vol,mount-path=/app/data"
+      - "--ingress"
+      - "internal-and-cloud-load-balancing"
+      - "--labels=appid=building-permit"
+      - "--add-volume=name=gcs-db,type=cloud-storage,bucket=${PROJECT_ID}-building-permit-db"
+      - "--add-volume-mount=volume=gcs-db,mount-path=/app/data"
 
 substitutions:
-  _REGION: us-central1 # This can be overridden by GOOGLE_CLOUD_LOCATION if passed as substitution
+  _REGION: us-central1
   _ARTIFACT_REGISTRY_REPO_NAME: building-permit
   _CONTAINER_NAME: building-permit-api
   _COMMIT_SHA: latest
-  _AGENT_URL: http://localhost:8000/analyze
-  _DB_BUCKET_NAME: ${PROJECT_ID}-building-permit-data
-
-# Environment vars for the runtime
-# We'll map _REGION to GOOGLE_CLOUD_LOCATION in the deploy step
+  _AGENT_URL: https://building-permit-agent-432423772502.us-central1.run.app
+  _CONTRACTOR_AGENT_URL: https://building-permit-contractor-agent-432423772502.us-central1.run.app
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO_NAME/$_CONTAINER_NAME:${_COMMIT_SHA}

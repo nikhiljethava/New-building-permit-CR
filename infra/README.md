@@ -5,6 +5,7 @@ The `infra` directory contains automation scripts and Makefiles to bootstrap the
 ## Features
 - **API Enablement:** Automatically enables Vertex AI, Document AI, Cloud Trace, and other required Google Cloud services.
 - **Service Account Management:** Creates the necessary service accounts and assigns granular IAM roles for least-privilege security.
+- **Artifact Registry Repository Creation:** Sets up the "building-permit" Docker repository in the user's selected region.
 - **RAG Engine Bootstrap:** Sets up the Vertex AI Search (RAG) corpus and uploads the San Paloma County building codes (PDFs) from the `building-codes/` directory.
 - **Agent Engine Deployment:** Orchestrates the deployment of the reasoning engine via the `agent-engine` component.
 
@@ -33,6 +34,10 @@ If you need to run specific parts of the infrastructure setup:
 - **Create Service Account & IAM Roles:**
   ```bash
   make sa
+  ```
+- **Create Artifact Registry Repository:**
+  ```bash
+  make artifact-registry
   ```
 - **Initialize RAG Engine Corpus:**
   ```bash

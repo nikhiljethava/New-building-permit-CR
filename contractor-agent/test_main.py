@@ -12,21 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:20-alpine
-WORKDIR /app
+from fastapi.testclient import TestClient
+from main import app
 
-# Copy package files and install all dependencies (including devDependencies for the build)
-COPY package*.json ./
-RUN npm install
+client = TestClient(app)
 
-# Copy source code and build the React application
-COPY . .
-RUN npm run build
+def test_health_check():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
 
-# Expose port 3000 (which server.js uses by default)
-EXPOSE 8080
-
-ENV PORT=8080
-
-# Start the Express server
-CMD ["node", "server.js"]
+def test_feedback():
+    feedback = {"rating": 5, "comment": "Excellent service!"}
+    response = client.post("/feedback", json=feedback)
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
