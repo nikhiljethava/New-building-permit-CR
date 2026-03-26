@@ -28,7 +28,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // --- Main API Entrypoint ---
@@ -102,10 +101,5 @@ func main() {
 		port = "8080"
 	}
 
-	wrappedHandler := otelhttp.NewHandler(r, serviceName)
-
-	fmt.Printf("Starting API Gateway with OTel HTTP Server instrumentation on :%s\n", port)
-	if err := http.ListenAndServe(":"+port, wrappedHandler); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	r.Run(fmt.Sprintf(":%s", port))
 }
