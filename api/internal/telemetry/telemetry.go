@@ -21,8 +21,8 @@ import (
 	"log/slog"
 	"os"
 
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"go.opentelemetry.io/contrib/detectors/gcp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -31,19 +31,12 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 // InitTelemetry initializes OpenTelemetry for Tracing and Metrics using Google Cloud exporters.
 // It returns a shutdown function that should be called on service exit.
 func InitTelemetry(ctx context.Context, projectID, location, serviceName string) (func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
-
-	creds, err := google.FindDefaultCredentials(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find default credentials: %w", err)
-	}
 
 	// shutdown combines shutdown functions from multiple OpenTelemetry
 	// components into a single function.
@@ -73,13 +66,9 @@ func InitTelemetry(ctx context.Context, projectID, location, serviceName string)
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	traceExporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithHTTPClient(oauth2.NewClient(ctx, creds.TokenSource)),
-		otlptracehttp.WithHeaders(map[string]string{
-			"x-goog-user-project": projectID,
-		}))
+	traceExporter, err := texporter.New(texporter.WithProjectID(projectID))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
+		return nil, fmt.Errorf("failed to create GCP trace exporter: %w", err)
 	}
 
 	tp := sdktrace.NewTracerProvider(
