@@ -38,4 +38,4 @@ ENV OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=NO_CONTENT
 
 EXPOSE 8002
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["uv", "run", "main.py", "--host", "0.0.0.0", "--port", "8002"]

@@ -12,69 +12,89 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import uvicorn
-from mcp.server.fastmcp import FastMCP
+import os
+import grpc
+from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from db import get_connection, init_db
+from google.auth.transport.grpc import AuthMetadataPlugin
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+    OTLPSpanExporter,
+)
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+import asyncio
+import google.auth
+import google.auth.transport.requests
+from opentelemetry.resourcedetector.gcp_resource_detector import (
+    GoogleCloudResourceDetector,
+)
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource, get_aggregated_resources
+from fastmcp.server.middleware import Middleware, MiddlewareContext
+from opentelemetry.instrumentation.mcp import McpInstrumentor
+
+OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "building-permit-assessor-mcp-server")
+
+credentials, project_id = google.auth.default()
+resource = get_aggregated_resources(
+    detectors=[GoogleCloudResourceDetector()],
+    initial_resource=Resource.create(
+        attributes={
+            SERVICE_NAME: OTEL_SERVICE_NAME,
+            "gcp.project_id": project_id,
+        }
+    ),
+)
 
 # Initialize database
 init_db()
 
-import os
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from google import auth
-from google.auth.transport.grpc import AuthMetadataPlugin
-import google.auth.transport.requests
-import grpc
-from opentelemetry.instrumentation.mcp import McpInstrumentor
+request = google.auth.transport.requests.Request()
+auth_metadata_plugin = AuthMetadataPlugin(credentials=credentials, request=request)
+channel_creds = grpc.composite_channel_credentials(
+    grpc.ssl_channel_credentials(),
+    grpc.metadata_call_credentials(auth_metadata_plugin),
+)
+# Set up OpenTelemetry Python SDK
+tracer_provider = TracerProvider(resource=resource)
+tracer_provider.add_span_processor(
+    BatchSpanProcessor(
+        OTLPSpanExporter(
+            credentials=channel_creds,
+            endpoint="https://telemetry.googleapis.com:443/v1/traces",
+        )
+    )
+)
+trace.set_tracer_provider(tracer_provider)
 
-# --- OpenTelemetry Setup ---
+# Instrument MCP Server
 McpInstrumentor().instrument()
 
-try:
-    credentials, project_id = auth.default()
-except Exception:
-    credentials, project_id = None, None
+class TraceMiddleware(Middleware):
+    async def on_call_tool(self, context: MiddlewareContext, call_next):
 
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", project_id or "")
+        # print context method message.name and type
+        print(f"Context method: {context.method} Context message.name: {context.message.name} Context message.type: {context.message.type}")
+        tool_name = context.message.name
 
-if PROJECT_ID:
-    os.environ["OTEL_RESOURCE_ATTRIBUTES"] = f"gcp.project_id={PROJECT_ID}"
+        # The tracer name can be any string. Using the module name is a common practice.
+        tracer = trace.get_tracer(__name__)
+        span_name = tool_name
 
-os.environ.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "https://telemetry.googleapis.com")
-
-resource = Resource.create(
-    attributes={
-        SERVICE_NAME: "building-permit-assessor-mcp-server",
-    }
-)
-
-try:
-    if credentials:
-        # Request used to refresh credentials upon expiry
-        request = auth.transport.requests.Request()
-        auth_metadata_plugin = AuthMetadataPlugin(credentials=credentials, request=request)
-        channel_creds = grpc.composite_channel_credentials(
-            grpc.ssl_channel_credentials(),
-            grpc.metadata_call_credentials(auth_metadata_plugin),
-        )
-        otlp_grpc_exporter = OTLPSpanExporter(credentials=channel_creds)
-    else:
-        otlp_grpc_exporter = OTLPSpanExporter()
-
-    tracer_provider = TracerProvider(resource=resource)
-    processor = BatchSpanProcessor(otlp_grpc_exporter)
-    tracer_provider.add_span_processor(processor)
-    trace.set_tracer_provider(tracer_provider)
-except Exception as e:
-    print(f"Failed to initialize OpenTelemetry: {e}")
+        with tracer.start_as_current_span(span_name) as span:
+            # Add attributes to the span for more context in Cloud Trace.
+            span.set_attribute("context.method", str(context.method))
+            span.set_attribute("context.name", str(context.message.name))
+            span.set_attribute("context.type", str(context.type))
+            # Allow other tools to proceed
+            return await call_next(context)
 
 # Initialize FastMCP Server
-mcp_server = FastMCP(name="building-permit-assessor-mcp-server", host="0.0.0.0")
+mcp_server = FastMCP(
+    name=OTEL_SERVICE_NAME,
+    middleware=[TraceMiddleware()]
+)
 
 @mcp_server.tool(
     annotations=ToolAnnotations(
@@ -84,6 +104,7 @@ mcp_server = FastMCP(name="building-permit-assessor-mcp-server", host="0.0.0.0")
 )
 def lookup_parcel(apn: str) -> dict:
     """Lookup property details by Assessor's Parcel Number (APN)."""
+    print(f"lookup_parcel called with apn: {apn}")
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM parcels WHERE apn = ?", (apn,))
@@ -101,6 +122,7 @@ def lookup_parcel(apn: str) -> dict:
 )
 def get_zoning_classification(address: str) -> str:
     """Get the zoning classification code for a given address."""
+    print(f"get_zoning_classification called with address: {address}")
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT zoning_code FROM zoning_by_address WHERE address LIKE ?", (f"%{address}%",))
@@ -118,6 +140,7 @@ def get_zoning_classification(address: str) -> str:
 )
 def get_setback_requirements(zoning_code: str) -> dict:
     """Get setback requirements, lot coverage limits, and height limits for a given zoning code."""
+    print(f"get_setback_requirements called with zoning_code: {zoning_code}")
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM zoning_rules WHERE zoning_code = ?", (zoning_code,))
@@ -137,6 +160,7 @@ def get_setback_requirements(zoning_code: str) -> dict:
 )
 def add_parcel(apn: str, address: str, lot_size_sqft: int, owner: str, assessed_value: int) -> dict:
     """Add a new property to the assessor's database."""
+    print(f"add_parcel called with apn: {apn}, address: {address}, lot_size_sqft: {lot_size_sqft}, owner: {owner}, assessed_value: {assessed_value}")
     conn = get_connection()
     c = conn.cursor()
     try:
@@ -160,6 +184,7 @@ def add_parcel(apn: str, address: str, lot_size_sqft: int, owner: str, assessed_
 )
 def rezone_address(address: str, new_zoning_code: str) -> dict:
     """Update the zoning classification code for a specific address."""
+    print(f"rezone_address called with address: {address}, new_zoning_code: {new_zoning_code}")
     conn = get_connection()
     c = conn.cursor()
     try:
@@ -210,7 +235,12 @@ def add_zoning_rule(zoning_code: str, description: str, max_height_ft: int, max_
     finally:
         conn.close()
 
-app = mcp_server.streamable_http_app()
-
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)
+    # Could also use 'sse' transport, host="0.0.0.0" required for Cloud Run.
+    asyncio.run(
+        mcp_server.run_async(
+            transport="streamable-http", 
+            host="0.0.0.0", 
+            port=8002,
+        )
+    )
