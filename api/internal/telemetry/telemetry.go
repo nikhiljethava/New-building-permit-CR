@@ -24,7 +24,6 @@ import (
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -49,24 +48,21 @@ func InitTelemetry(ctx context.Context, projectID, location, serviceName string)
 		return err
 	}
 
-	// Define resource attributes
-	customRes, err := resource.New(ctx,
+	// Construct the resource with service.name first, then merge with defaults/GCP detector
+	res, err := resource.New(ctx,
 		resource.WithDetectors(gcp.NewDetector()),
 		resource.WithTelemetrySDK(),
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
-			attribute.String("gcp.project_id", projectID),
-			attribute.String("gcp.location", location),
-			attribute.String("cloud.provider", "gcp"),
-			attribute.String("cloud.region", location),
-			attribute.String("cloud.account.id", projectID),
+			semconv.TelemetrySDKLanguageGo,
 		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create custom resource: %w", err)
+		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	res, err := resource.Merge(resource.Default(), customRes)
+	// Make sure we have default standard attributes, but custom res overrides them
+	res, err = resource.Merge(resource.Default(), res)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge resources: %w", err)
 	}
