@@ -51,14 +51,15 @@ func InitTelemetry(ctx context.Context, projectID, location, serviceName string)
 	// Construct the resource with service.name first, then merge with defaults/GCP detector
 	res, err := resource.New(ctx,
 		resource.WithDetectors(gcp.NewDetector()),
-		resource.WithTelemetrySDK(),
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
-			semconv.TelemetrySDKLanguageGo,
 		),
 	)
-	if err != nil && !errors.Is(err, resource.ErrPartialResource) {
+	if err != nil && !errors.Is(err, resource.ErrPartialResource) &&
+		!errors.Is(err, resource.ErrSchemaURLConflict) {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
+	} else if err != nil {
+		slog.WarnContext(ctx, "partial resource detected; some attributes may be missing", "error", err)
 	}
 
 	traceExporter, err := texporter.New(texporter.WithProjectID(projectID))
