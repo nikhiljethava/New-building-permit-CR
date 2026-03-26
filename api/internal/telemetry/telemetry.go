@@ -21,14 +21,11 @@ import (
 	"log/slog"
 	"os"
 
-	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
-	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"go.opentelemetry.io/contrib/detectors/gcp"
-	"go.opentelemetry.io/contrib/instrumentation/runtime"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
@@ -37,7 +34,7 @@ import (
 
 // InitTelemetry initializes OpenTelemetry for Tracing and Metrics using Google Cloud exporters.
 // It returns a shutdown function that should be called on service exit.
-func InitTelemetry(ctx context.Context, projectID, serviceName string) (func(context.Context) error, error) {
+func InitTelemetry(ctx context.Context, projectID, location, serviceName string) (func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
 
 	// shutdown combines shutdown functions from multiple OpenTelemetry
@@ -58,15 +55,19 @@ func InitTelemetry(ctx context.Context, projectID, serviceName string) (func(con
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
 			attribute.String("gcp.project_id", projectID),
+			attribute.String("gcp.location", location),
+			attribute.String("cloud.provider", "gcp"),
+			attribute.String("cloud.region", location),
+			attribute.String("cloud.account.id", projectID),
 		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	traceExporter, err := texporter.New(texporter.WithProjectID(projectID))
+	traceExporter, err := otlptracehttp.New(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		return nil, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
 	}
 
 	tp := sdktrace.NewTracerProvider(
@@ -76,24 +77,6 @@ func InitTelemetry(ctx context.Context, projectID, serviceName string) (func(con
 	)
 	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
 	otel.SetTracerProvider(tp)
-
-	// 2. Metric Exporter
-	metricExporter, err := mexporter.New(mexporter.WithProjectID(projectID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
-	}
-
-	mp := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(metricExporter)),
-		metric.WithResource(res),
-	)
-	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
-	otel.SetMeterProvider(mp)
-
-	// Start runtime metrics collection
-	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
-		return nil, fmt.Errorf("failed to start runtime metrics: %w", err)
-	}
 
 	// 3. Propagator
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(

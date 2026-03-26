@@ -33,6 +33,8 @@ import (
 
 // --- Main API Entrypoint ---
 
+const serviceName = "building-permit-api"
+
 func main() {
 	// Initialize Telemetry
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
@@ -40,7 +42,12 @@ func main() {
 		fmt.Println("Warning: GOOGLE_CLOUD_PROJECT not set. Telemetry might fail or use default.")
 	}
 
-	shutdown, err := telemetry.InitTelemetry(context.Background(), projectID, "building-permit-api")
+	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if location == "" {
+		fmt.Println("Warning: GOOGLE_CLOUD_LOCATION not set. Telemetry might fail or use default.")
+	}
+
+	shutdown, err := telemetry.InitTelemetry(context.Background(), projectID, location, serviceName)
 	if err != nil {
 		log.Printf("Failed to initialize telemetry: %v", err)
 	} else {
@@ -57,13 +64,13 @@ func main() {
 	r := gin.Default()
 
 	// Add OpenTelemetry middleware
-	r.Use(otelgin.Middleware("building-plan-api"))
+	r.Use(otelgin.Middleware(serviceName))
 
 	// Setup CORS to allow our frontend to make requests
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // in production restrict this to frontend URL
 		AllowMethods:     []string{"POST", "GET", "OPTIONS", "DELETE"},
-		AllowHeaders:     []string{"Origin", "Content-Type"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
@@ -95,7 +102,7 @@ func main() {
 		port = "8080"
 	}
 
-	wrappedHandler := otelhttp.NewHandler(r, "building-plan-api")
+	wrappedHandler := otelhttp.NewHandler(r, serviceName)
 
 	fmt.Printf("Starting API Gateway with OTel HTTP Server instrumentation on :%s\n", port)
 	if err := http.ListenAndServe(":"+port, wrappedHandler); err != nil {
