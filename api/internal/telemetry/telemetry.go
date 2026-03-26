@@ -48,17 +48,25 @@ func InitTelemetry(ctx context.Context, projectID, location, serviceName string)
 		return err
 	}
 
-	// Construct the resource with service.name first, then merge with defaults/GCP detector
-	res, err := resource.New(ctx,
-		resource.WithDetectors(gcp.NewDetector()),
-		resource.WithTelemetrySDK(),
-		resource.WithAttributes(
+	// Construct the OpenTelemetry resource describing this application.
+	// We merge resource.Default() to ensure standard attributes (like telemetry.sdk.name) are present,
+	// and we override the schema URL to avoid conflicts between different semconv versions.
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(serviceName),
 			semconv.TelemetrySDKLanguageGo,
 		),
 	)
-	if err != nil && !errors.Is(err, resource.ErrPartialResource) {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge default resource: %w", err)
+	}
+
+	// Merge GCP detector separately to prevent schema conflict errors.
+	gcpRes, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
+	if err == nil && gcpRes != nil {
+		res, _ = resource.Merge(res, gcpRes)
 	}
 
 	traceExporter, err := texporter.New(texporter.WithProjectID(projectID))
