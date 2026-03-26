@@ -12,32 +12,61 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import uvicorn
+import os
+import grpc
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from db import get_connection, init_db
+from google.auth.transport.grpc import AuthMetadataPlugin
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+    OTLPSpanExporter,
+)
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+import asyncio
+import google.auth
+import google.auth.transport.requests
+from opentelemetry.resourcedetector.gcp_resource_detector import (
+    GoogleCloudResourceDetector,
+)
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource, get_aggregated_resources
+from fastmcp.server.middleware import Middleware, MiddlewareContext
+from opentelemetry.instrumentation.mcp import McpInstrumentor
+
+OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "building-permit-assessor-mcp-server")
+
+credentials, project_id = google.auth.default()
+resource = get_aggregated_resources(
+    detectors=[GoogleCloudResourceDetector()],
+    initial_resource=Resource.create(
+        attributes={
+            SERVICE_NAME: OTEL_SERVICE_NAME,
+            "gcp.project_id": project_id,
+        }
+    ),
+)
 
 # Initialize database
 init_db()
 
-import os
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from google import auth
-from google.auth.transport.grpc import AuthMetadataPlugin
-import google.auth.transport.requests
-import grpc
-from fastmcp.server.middleware import Middleware, MiddlewareContext
-from opentelemetry.instrumentation.mcp import McpInstrumentor
-from telemetry import setup_telemetry
-
-OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "building-permit-assessor-mcp-server")
-
-# Setup telemetry
-setup_telemetry()
+request = google.auth.transport.requests.Request()
+auth_metadata_plugin = AuthMetadataPlugin(credentials=credentials, request=request)
+channel_creds = grpc.composite_channel_credentials(
+    grpc.ssl_channel_credentials(),
+    grpc.metadata_call_credentials(auth_metadata_plugin),
+)
+# Set up OpenTelemetry Python SDK
+tracer_provider = TracerProvider(resource=resource)
+tracer_provider.add_span_processor(
+    BatchSpanProcessor(
+        OTLPSpanExporter(
+            credentials=channel_creds,
+            endpoint="https://telemetry.googleapis.com:443/v1/traces",
+        )
+    )
+)
+trace.set_tracer_provider(tracer_provider)
 
 # Instrument MCP Server
 McpInstrumentor().instrument()
@@ -55,17 +84,14 @@ class TraceMiddleware(Middleware):
             span.set_attribute("context.method", str(context.method))
             span.set_attribute("context.name", str(context.message.name))
             span.set_attribute("context.type", str(context.type))
-            span.set_attribute("service.name", OTEL_SERVICE_NAME)
             # Allow other tools to proceed
             return await call_next(context)
-
 
 # Initialize FastMCP Server
 mcp_server = FastMCP(
     name=OTEL_SERVICE_NAME,
     middleware=[TraceMiddleware()]
 )
-
 
 @mcp_server.tool(
     annotations=ToolAnnotations(
@@ -201,7 +227,12 @@ def add_zoning_rule(zoning_code: str, description: str, max_height_ft: int, max_
     finally:
         conn.close()
 
-app = mcp_server.http_app()
-
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)
+    # Could also use 'sse' transport, host="0.0.0.0" required for Cloud Run.
+    asyncio.run(
+        mcp_server.run_async(
+            transport="streamable-http", 
+            host="0.0.0.0", 
+            port=8002,
+        )
+    )
