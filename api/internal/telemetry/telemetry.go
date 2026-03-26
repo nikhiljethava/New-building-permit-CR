@@ -57,14 +57,8 @@ func InitTelemetry(ctx context.Context, projectID, location, serviceName string)
 			semconv.TelemetrySDKLanguageGo,
 		),
 	)
-	if err != nil {
+	if err != nil && !errors.Is(err, resource.ErrPartialResource) {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
-	}
-
-	// Make sure we have default standard attributes, but custom res overrides them
-	res, err = resource.Merge(resource.Default(), res)
-	if err != nil {
-		return nil, fmt.Errorf("failed to merge resources: %w", err)
 	}
 
 	traceExporter, err := texporter.New(texporter.WithProjectID(projectID))
