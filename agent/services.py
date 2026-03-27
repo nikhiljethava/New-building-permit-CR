@@ -141,6 +141,7 @@ class AIService:
             raise ValueError("Assessor MCP Server not found in Agent Registry")
         
         self.mcp_server_name = mcp_server_name
+        self.mcp_toolset = self.registry.get_mcp_toolset(mcp_server_name)
 
         # Lookup ContractorAgent
         agents_list = self.registry.list_agents()
@@ -217,6 +218,15 @@ class AIService:
              2. Elements that violate the codes or need changes. For each violation, specify the exact code section (e.g. "CA Title 24, Part 6, Section 150.0"), describe the issue, and provide a suggestion for fixing it.
 
              You have access to a tool to search past conversation memories. Use it to refer back to past discussions or previously noted violations if they are relevant to the current analysis.
+             After gathering this data, produce your final answer as a JSON object matching EXACTLY this structure:
+             {
+                "status": "Approved | Changes Suggested | Rejected",
+                "violations": [
+                    {"section": "...", "description": "...", "suggestion": "..."}
+                ],
+                "approved_elements": ["..."]
+             }
+             Output ONLY the JSON object, no other text.
              """
 
              # You can optionally pass retrieved RAG context here as well:
@@ -233,11 +243,15 @@ class AIService:
                  name="plan_analyzer",
                  model=self.model_name,
                  instruction=prompt,
-                 # tools=[load_memory, self.registry.get_mcp_toolset(self.mcp_server_name)],
-                 tools=[load_memory, self.get_assessor_mcp_server()],
+                 # get the assessor mcp server tools from registry
+                 tools=[load_memory, self.mcp_toolset],
+                 # if not usng Agent Registry, use this
+                 # tools=[load_memory, self.get_assessor_mcp_server()],
                  sub_agents=[self.registry.get_remote_a2a_agent(self.contractor_agent_name)],
+                 # If not using Agent Registry, uncomment this block
                  # sub_agents=[self.get_remote_a2a_agent()],
-                 output_schema=PlanAnalysisResponse,
+                 # DO NOT ENABLE OUTPUT SCHEMA, IT BREAKS THE JSON OUTPUT
+                 # output_schema=PlanAnalysisResponse,
                  after_agent_callback=auto_save_session_to_memory_callback
              )
 
