@@ -433,7 +433,8 @@ class AIService:
     def get_assessor_mcp_server(self) -> McpToolset:
         assessor_mcp_server_url = os.getenv("ASSESSOR_MCP_SERVER_URL", "http://0.0.0.0:8002")
         return McpToolset(
-            connection_params=StreamableHTTPConnectionParams(url=assessor_mcp_server_url)
+            connection_params=StreamableHTTPConnectionParams(url=assessor_mcp_server_url),
+            header_provider=otel_header_provider
         )
 
     def _get_mock_response(self) -> Dict[str, Any]:
