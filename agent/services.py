@@ -39,9 +39,40 @@ from a2a.types import TransportProtocol
 from opentelemetry.propagate import inject
 from google.adk.integrations.agent_registry import AgentRegistry
 
+from google.adk.plugins.bigquery_agent_analytics_plugin import (
+    BigQueryAgentAnalyticsPlugin,
+    BigQueryLoggerConfig,
+)
+from google.cloud import bigquery
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize BigQuery Analytics
+_plugins = []
+_project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+_dataset_id = os.environ.get("BQ_ANALYTICS_DATASET_ID", "adk_agent_analytics")
+_location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+
+if _project_id:
+    try:
+        bq = bigquery.Client(project=_project_id)
+        bq.create_dataset(f"{_project_id}.{_dataset_id}", exists_ok=True)
+
+        _plugins.append(
+            BigQueryAgentAnalyticsPlugin(
+                project_id=_project_id,
+                dataset_id=_dataset_id,
+                location=_location,
+                config=BigQueryLoggerConfig(
+                    gcs_bucket_name=os.environ.get("BQ_ANALYTICS_GCS_BUCKET"),
+                    connection_id=os.environ.get("BQ_ANALYTICS_CONNECTION_ID"),
+                ),
+            )
+        )
+    except Exception as e:
+        logging.warning(f"Failed to initialize BigQuery Analytics: {e}")
 
 def otel_header_provider(context) -> dict[str, str]:
     """
@@ -202,7 +233,8 @@ class AIService:
                  name="plan_analyzer",
                  model=self.model_name,
                  instruction=prompt,
-                 tools=[load_memory, self.registry.get_mcp_toolset(self.mcp_server_name)],
+                 # tools=[load_memory, self.registry.get_mcp_toolset(self.mcp_server_name)],
+                 tools=[load_memory, self.get_assessor_mcp_server()],
                  sub_agents=[self.registry.get_remote_a2a_agent(self.contractor_agent_name)],
                  # sub_agents=[self.get_remote_a2a_agent()],
                  output_schema=PlanAnalysisResponse,
@@ -217,7 +249,8 @@ class AIService:
                  app_name=self.reasoning_engine_app_name,
                  agent=agent,
                  session_service=session_service,
-                 memory_service=VertexAiMemoryBankService(agent_engine_id=agent_engine_id)
+                 memory_service=VertexAiMemoryBankService(agent_engine_id=agent_engine_id),
+                 plugins=_plugins
              )
 
              # Create the document part
@@ -329,7 +362,8 @@ class AIService:
                 app_name=self.reasoning_engine_app_name or "default-app",
                 agent=agent,
                 session_service=session_service,
-                memory_service=VertexAiMemoryBankService(agent_engine_id=agent_engine_id)
+                memory_service=VertexAiMemoryBankService(agent_engine_id=agent_engine_id),
+                plugins=_plugins
             )
 
             # Build the conversation history
@@ -395,6 +429,13 @@ class AIService:
                 agent_card=f"{contractor_agent_url}",
                 a2a_client_factory=client_factory,
             )
+
+    def get_assessor_mcp_server(self) -> McpToolset:
+        assessor_mcp_server_url = os.getenv("ASSESSOR_MCP_SERVER_URL", "http://0.0.0.0:8002")
+        return McpToolset(
+            connection_params=StreamableHTTPConnectionParams(url=assessor_mcp_server_url),
+            header_provider=otel_header_provider
+        )
 
     def _get_mock_response(self) -> Dict[str, Any]:
          return {
