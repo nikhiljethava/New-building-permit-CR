@@ -21,10 +21,14 @@ DB_NAME = os.getenv("DB_NAME", "")
 if DB_NAME == "":
     DB_NAME = os.path.join(os.path.dirname(__file__), "assessor.db")
 
+_global_conn = None
+
 def get_connection():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
+    global _global_conn
+    if _global_conn is None:
+        _global_conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+        _global_conn.row_factory = sqlite3.Row
+    return _global_conn
 
 def init_db():
     conn = get_connection()
@@ -87,7 +91,7 @@ def init_db():
         seed_data(c)
 
     conn.commit()
-    conn.close()
+    # We don't close the global connection here
 
 def generate_addresses():
     # 50 real addresses in Santa Clara County
