@@ -47,7 +47,21 @@ If you need to run specific parts of the infrastructure setup:
   ```bash
   make agent-engine
   ```
+- **Onboard Assessor MCP Server:**
+  ```bash
+  make onboard-assessor
+  ```
+- **Onboard Contractor Agent:**
+  ```bash
+  make onboard-contractor
+  ```
+- **Onboard All Agents:**
+  ```bash
+  make onboard
+  ```
 
 ## Key Scripts
-- `setup.sh`: A bash script for service enablement and IAM configuration.
+- `setup.py`: A Python script for service enablement, IAM configuration, and infrastructure setup.
 - `rag_setup.py`: A Python script using the Vertex AI SDK to manage RAG corpora and documents.
+- `onboard_assessor_mcp.py`: Automates onboarding the Assessor MCP Server to Agent Registry by dynamically fetching its spec.
+- `onboard_contractor_agent.py`: Automates onboarding the Contractor Agent to Agent Registry using its agent card.
