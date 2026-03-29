@@ -60,6 +60,7 @@ def setup_infrastructure():
         "agentregistry.googleapis.com",
         "bigquery.googleapis.com",
         "secretmanager.googleapis.com",
+        "modelarmor.googleapis.com",
     ]
     for api in apis:
         print(f"Enabling {api}...")
@@ -92,7 +93,8 @@ def setup_infrastructure():
         "roles/secretmanager.secretAccessor",
         "roles/browser",
         "roles/cloudapiregistry.viewer",
-        "roles/monitoring.metricWriter"
+        "roles/monitoring.metricWriter",
+        "roles/modelarmor.admin"
     ]
     for role in roles:
         print(f"Adding role {role}...")
