@@ -100,12 +100,16 @@ export function NewPermit() {
             setAvailableAddresses(res.data.properties);
             if (!selectedAddress && res.data.properties.length > 0) {
               handleAddressSelect(res.data.properties[0]);
+            } else if (selectedAddress && !mapCenter && !mapError) {
+              // If selectedAddress is already set (e.g. from currentProperty)
+              // make sure we load the map data for it on mount
+              handleAddressSelect(selectedAddress);
             }
           }
         })
         .catch(err => console.error("Failed to load properties:", err));
     }
-  }, [user, handleAddressSelect, selectedAddress]);
+  }, [user, handleAddressSelect, selectedAddress, mapCenter, mapError]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
