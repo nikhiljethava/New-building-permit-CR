@@ -32,8 +32,9 @@ export function initTelemetry() {
   }
 
   const headers: Record<string, string> = {};
-  if (import.meta.env.VITE_OTLP_API_KEY) {
-    headers['x-goog-api-key'] = import.meta.env.VITE_OTLP_API_KEY;
+  const apiKey = import.meta.env.VITE_OTLP_API_KEY || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  if (apiKey) {
+    headers['x-goog-api-key'] = apiKey;
   }
 
   const exporter = new OTLPTraceExporter({

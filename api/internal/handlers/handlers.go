@@ -416,13 +416,27 @@ func GetPropertiesByEmailHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-type MapSearchRequest struct {
-	Address string `json:"address" binding:"required"`
+type headerTransport struct {
+	base   http.RoundTripper
+	header http.Header
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	for k, vv := range t.header {
+		for _, v := range vv {
+			req.Header.Add(k, v)
+		}
+	}
+	if t.base == nil {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	return t.base.RoundTrip(req)
 }
 
 // GetMapDataHandler calls the Google Maps MCP Server
 func GetMapDataHandler(c *gin.Context) {
-	var reqBody MapSearchRequest
+	var reqBody models.MapSearchRequest
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -436,13 +450,26 @@ func GetMapDataHandler(c *gin.Context) {
 
 	// Create a new client, with no features.
 	client := mcp.NewClient(&mcp.Implementation{Name: "mcp-client", Version: "v1.0.0"}, nil)
+	
+	// Create a custom transport to inject the API key header
+	var customClient *http.Client
+	if apiKey != "" {
+		customClient = &http.Client{
+			Transport: &headerTransport{
+				base:   http.DefaultTransport,
+				header: http.Header{"x-goog-api-key": []string{apiKey}},
+			},
+		}
+	}
+
 	transport := &mcp.StreamableClientTransport{
-		Endpoint: "https://mapstools.googleapis.com/mcp",
+		Endpoint:   "https://mapstools.googleapis.com/mcp",
+		HTTPClient: customClient,
 	}
 
 	cs, err := client.Connect(c.Request.Context(), transport, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to Assessor MCP"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to Maps MCP server"})
 		return
 	}
 	defer cs.Close()
@@ -458,16 +485,13 @@ func GetMapDataHandler(c *gin.Context) {
 
 	for _, content := range result.Content {
 		if textContent, ok := content.(*mcp.TextContent); ok {
-			var resp models.UserPropertiesResponse
-			if err := json.Unmarshal([]byte(textContent.Text), &resp); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse properties response"})
-				return
-			}
-			c.JSON(http.StatusOK, resp)
+			// The MCP response text is already JSON, send it directly
+			c.Data(http.StatusOK, "application/json", []byte(textContent.Text))
 			return
 		}
 	}
 
-	// Fallback to returning raw result if parsing fails
+	// Fallback to returning raw result if no text content
 	c.JSON(http.StatusOK, result)
 }
+
