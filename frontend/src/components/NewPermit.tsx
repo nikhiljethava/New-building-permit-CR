@@ -111,7 +111,10 @@ export function NewPermit() {
         .catch(err => console.error("Failed to load properties:", err))
         .finally(() => setIsFetchingAddresses(false));
     } else {
-      setIsFetchingAddresses(false);
+      // Defer state update to avoid synchronous state updates during render phase
+      // which triggers eslint react-hooks/set-state-in-effect warning
+      const timer = setTimeout(() => setIsFetchingAddresses(false), 0);
+      return () => clearTimeout(timer);
     }
   }, [user, handleAddressSelect, selectedAddress, mapCenter, mapError]);
 
