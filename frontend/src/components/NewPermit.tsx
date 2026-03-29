@@ -31,6 +31,7 @@ export function NewPermit() {
   const [error, setError] = useState<string | null>(null);
 
   const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+  const [isFetchingAddresses, setIsFetchingAddresses] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState<string>(currentProperty?.address || '');
   const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -107,7 +108,10 @@ export function NewPermit() {
             }
           }
         })
-        .catch(err => console.error("Failed to load properties:", err));
+        .catch(err => console.error("Failed to load properties:", err))
+        .finally(() => setIsFetchingAddresses(false));
+    } else {
+      setIsFetchingAddresses(false);
     }
   }, [user, handleAddressSelect, selectedAddress, mapCenter, mapError]);
 
@@ -152,6 +156,17 @@ export function NewPermit() {
   };
 
   if (!user) return null;
+
+  if (isFetchingAddresses) {
+    return (
+      <div className="bg-surface-bright text-on-surface font-body min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-on-surface-variant font-medium">Loading available properties...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-surface-bright text-on-surface font-body min-h-screen flex flex-col pb-20">
