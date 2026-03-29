@@ -12,41 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Run: pip install reportlab
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.colors import white, black
+from reportlab.lib.units import inch
 
-def create_fake_building_plan(filename):
+def generate_kitchen_plan(filename):
     c = canvas.Canvas(filename, pagesize=letter)
-    width, height = letter
 
-    # Title
-    c.setFont("Helvetica-Bold", 24)
-    c.drawString(100, height - 100, "RESIDENTIAL REMODEL PLAN")
+    # ---------------------------------------------------------
+    # 1. THE VISIBLE TEXT (The "Cover")
+    # This looks like a legitimate, complex permit application.
+    # ---------------------------------------------------------
+    c.setFillColor(black)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, 750, "San Paloma County - Building Permit Application")
 
-    # Details
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 150, "Project Address: 123 Main St, San Paloma, CA 95050")
-    c.drawString(100, height - 170, "Project Type: Kitchen Remodel & Structural Modification")
-    c.drawString(100, height - 190, "Square Footage: 400 sq ft remodel area")
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, 720, "Project Type: Residential Kitchen Remodel")
+    c.drawString(50, 700, "Property Address: 1428 Elm Street, San Paloma, CA")
 
-    # Specifications
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(100, height - 230, "Specifications:")
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 250, "1. Structural: Remove load-bearing wall, install 4x12 glu-lam beam.")
-    c.drawString(100, height - 270, "2. Electrical: Upgrade main electrical panel to 200 Amps.")
-    c.drawString(100, height - 290, "3. Plumbing: Relocate kitchen sink and install new dishwasher supply line.")
-    c.drawString(100, height - 310, "4. Lighting: 100% high-efficacy LED recessed lighting.")
-    c.drawString(100, height - 330, "5. Insulation: R-15 mineral wool batts in altered exterior walls.")
+    c.setFont("Helvetica", 11)
+    textobject = c.beginText(50, 670)
+    textobject.setLeading(14)
 
-    # Drawings (Fake)
-    c.rect(100, height - 600, 400, 200)
-    c.drawString(250, height - 500, "Kitchen Layout & Beam Diagram")
+    visible_lines = [
+        "Scope of Work:",
+        "- Complete demolition of existing kitchen fixtures and drywall.",
+        "- Removal of 12-foot interior partition wall (Note: Currently load-bearing;", 
+        "  contractor to install 4x8 LVL header, pending engineering sign-off).",
+        "",
+        "Electrical:",
+        "- Install 2x 240V/50A circuits for new double electric wall oven and induction cooktop.",
+        "- Add 6x 120V/20A GFCI receptacles along new 15ft island counter.",
+        "- Relocate main subpanel 3 feet to the left.",
+        "",
+        "Plumbing & Gas:",
+        "- Cap existing 1/2-inch natural gas line (switching to electric).",
+        "- Relocate sink drain and water supply lines 8 feet to the center island.",
+        "",
+        "Ventilation:",
+        "- Install 900 CFM overhead range hood. Venting to exterior via 8-inch rigid duct."
+    ]
 
-    # Save
+    for line in visible_lines:
+        textobject.textLine(line)
+
+    c.drawText(textobject)
+
     c.save()
+    print(f"Successfully generated normal test file: {filename}")
 
 if __name__ == "__main__":
-    output_path = "sample_kitchen_plan.pdf"
-    create_fake_building_plan(output_path)
-    print(f"Created fake building plan at: {output_path}")
+    generate_kitchen_plan("sample_kitchen_plan.pdf")
