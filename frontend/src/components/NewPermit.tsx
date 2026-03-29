@@ -14,20 +14,31 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 const API_URL = '';
 
 export function NewPermit() {
-  const { user, currentProperty } = useAuthStore();
+  const { user, currentProperty, setCurrentProperty } = useAuthStore();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [availableAddresses, setAvailableAddresses] = useState<string[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<string>(currentProperty?.address || '');
+  const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+  });
 
   const [formData, setFormData] = useState({
     projectName: '',
@@ -37,6 +48,64 @@ export function NewPermit() {
     zipCode: currentProperty?.zip_code || '',
     description: ''
   });
+
+  const handleAddressSelect = useCallback(async (address: string) => {
+    setSelectedAddress(address);
+    setFormData(prev => ({ ...prev, streetAddress: address }));
+    setMapError(null);
+    setMapCenter(null);
+
+    try {
+      // First ensure the property exists in the Go DB for this user
+      if (user?.id) {
+        try {
+          const createPropRes = await axios.post(`${API_URL}/api/users/${user.id}/properties`, {
+            address: address,
+            city: '', // Extract from address if possible, but leaving blank for now
+            zip_code: ''
+          });
+          setCurrentProperty(createPropRes.data);
+        } catch (propErr) {
+          console.error("Non-fatal: Failed to register property in backend DB", propErr);
+        }
+      }
+
+      // Fetch map data using the new API endpoint
+      const mapRes = await axios.post(`${API_URL}/api/map/search`, { address });
+
+      if (mapRes.data && mapRes.data.places && mapRes.data.places.length > 0) {
+        const location = mapRes.data.places[0].location;
+        if (location) {
+           setMapCenter({
+             lat: location.latitude,
+             lng: location.longitude
+           });
+        } else {
+           setMapError("LOCATION_NOT_FOUND");
+        }
+      } else {
+         setMapError("NO_PLACES_FOUND");
+      }
+    } catch (err) {
+      console.error("Failed to fetch map data:", err);
+      setMapError("API_ERROR");
+    }
+  }, [user, setCurrentProperty]);
+
+  useEffect(() => {
+    if (user?.email) {
+      axios.get(`${API_URL}/api/users/email/${user.email}/properties`)
+        .then(res => {
+          if (res.data && res.data.properties) {
+            setAvailableAddresses(res.data.properties);
+            if (!selectedAddress && res.data.properties.length > 0) {
+              handleAddressSelect(res.data.properties[0]);
+            }
+          }
+        })
+        .catch(err => console.error("Failed to load properties:", err));
+    }
+  }, [user, handleAddressSelect, selectedAddress]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -178,18 +247,58 @@ export function NewPermit() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 ml-1">Street Address</label>
-                <input
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 ml-1">Select Property</label>
+                <select
                   name="streetAddress"
-                  value={formData.streetAddress}
-                  onChange={handleInputChange}
-                  className="w-full bg-surface-container-lowest border-none rounded-xl py-4 px-4 text-on-surface focus:ring-2 focus:ring-primary shadow-sm outline-none"
-                  placeholder="123 Construction Way"
-                  type="text"
-                />
+                  value={selectedAddress}
+                  onChange={(e) => handleAddressSelect(e.target.value)}
+                  className="w-full bg-surface-container-lowest border-none rounded-xl py-4 px-4 text-on-surface focus:ring-2 focus:ring-primary shadow-sm outline-none cursor-pointer"
+                  required
+                >
+                  <option value="" disabled>Select an address associated with your account...</option>
+                  {availableAddresses.map((addr) => (
+                    <option key={addr} value={addr}>{addr}</option>
+                  ))}
+                </select>
+                {availableAddresses.length === 0 && (
+                   <p className="text-xs text-error mt-2 ml-1">No properties found for your account.</p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Map Rendering Area */}
+              {selectedAddress && (
+                 <div className="mt-4 rounded-xl overflow-hidden shadow-inner bg-surface-container-lowest min-h-[250px] relative border border-outline-variant/30">
+                    {mapError ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-surface-container">
+                            <img
+                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='14' fill='%2394a3b8' text-anchor='middle' dominant-baseline='middle'%3EMap preview unavailable%3C/text%3E%3C/svg%3E"
+                                alt="Map placeholder"
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                    ) : !isLoaded || (!mapCenter && !mapError) ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-on-surface-variant">
+                          <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                          <span className="text-sm font-medium">Loading Map...</span>
+                        </div>
+                    ) : mapCenter ? (
+                        <GoogleMap
+                          mapContainerStyle={{ width: '100%', height: '250px' }}
+                          center={mapCenter}
+                          zoom={17}
+                          options={{
+                            disableDefaultUI: true,
+                            zoomControl: true,
+                            fullscreenControl: true,
+                          }}
+                        >
+                           <Marker position={mapCenter} />
+                        </GoogleMap>
+                    ) : null}
+                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 mt-6">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 ml-1">City</label>
                   <input

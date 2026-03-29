@@ -14,6 +14,7 @@
 
 import os
 import grpc
+import sqlite3
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from db import get_connection, init_db
@@ -36,37 +37,41 @@ from opentelemetry.instrumentation.mcp import McpInstrumentor
 
 OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "building-permit-assessor-mcp-server")
 
-credentials, project_id = google.auth.default()
-resource = get_aggregated_resources(
-    detectors=[GoogleCloudResourceDetector()],
-    initial_resource=Resource.create(
-        attributes={
-            SERVICE_NAME: OTEL_SERVICE_NAME,
-            "gcp.project_id": project_id,
-        }
-    ),
-)
-
 # Initialize database
 init_db()
 
-request = google.auth.transport.requests.Request()
-auth_metadata_plugin = AuthMetadataPlugin(credentials=credentials, request=request)
-channel_creds = grpc.composite_channel_credentials(
-    grpc.ssl_channel_credentials(),
-    grpc.metadata_call_credentials(auth_metadata_plugin),
-)
-# Set up OpenTelemetry Python SDK
-tracer_provider = TracerProvider(resource=resource)
-tracer_provider.add_span_processor(
-    BatchSpanProcessor(
-        OTLPSpanExporter(
-            credentials=channel_creds,
-            endpoint="https://telemetry.googleapis.com:443/v1/traces",
+try:
+    credentials, project_id = google.auth.default()
+    resource = get_aggregated_resources(
+        detectors=[GoogleCloudResourceDetector()],
+        initial_resource=Resource.create(
+            attributes={
+                SERVICE_NAME: OTEL_SERVICE_NAME,
+                "gcp.project_id": project_id,
+            }
+        ),
+    )
+
+    request = google.auth.transport.requests.Request()
+    auth_metadata_plugin = AuthMetadataPlugin(credentials=credentials, request=request)
+    channel_creds = grpc.composite_channel_credentials(
+        grpc.ssl_channel_credentials(),
+        grpc.metadata_call_credentials(auth_metadata_plugin),
+    )
+    # Set up OpenTelemetry Python SDK
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(
+                credentials=channel_creds,
+                endpoint="https://telemetry.googleapis.com:443/v1/traces",
+            )
         )
     )
-)
-trace.set_tracer_provider(tracer_provider)
+    trace.set_tracer_provider(tracer_provider)
+    print("Telemetry initialized successfully.")
+except Exception as e:
+    print(f"Warning: Failed to initialize Google Auth for Telemetry. Tracing will be disabled. Error: {e}")
 
 # Instrument MCP Server
 McpInstrumentor().instrument()
@@ -148,7 +153,6 @@ def get_setback_requirements(zoning_code: str) -> dict:
     if row:
         return dict(row)
     return {"error": f"Zoning code not found: {zoning_code}"}
-
 
 @mcp_server.tool(
     annotations=ToolAnnotations(
@@ -234,8 +238,30 @@ def add_zoning_rule(zoning_code: str, description: str, max_height_ft: int, max_
     finally:
         conn.close()
 
+@mcp_server.tool(
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        destructiveHint=False,
+    )
+)
+def get_user_properties(email: str) -> dict:
+    """Get a list of properties associated with a user's email address."""
+    print(f"get_user_properties called with email: {email}")
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    try:
+        c.execute("SELECT address FROM user_properties WHERE user_email = ?", (email,))
+        rows = c.fetchall()
+        properties = [row["address"] for row in rows]
+        return {"properties": properties}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
-    # Could also use 'sse' transport, host="0.0.0.0" required for Cloud Run.
     asyncio.run(
         mcp_server.run_async(
             transport="streamable-http", 

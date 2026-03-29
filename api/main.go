@@ -88,6 +88,9 @@ func main() {
 		api.DELETE("/permits/:id", handlers.DeletePermitHandler)
 		api.POST("/chat", handlers.ChatHandler)
 		api.POST("/contractor-chat", handlers.ContractorChatHandler)
+
+		api.GET("/users/email/:email/properties", handlers.GetPropertiesByEmailHandler)
+		api.POST("/map/search", handlers.GetMapDataHandler)
 	}
 
 	port := os.Getenv("PORT")

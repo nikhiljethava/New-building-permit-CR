@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -367,3 +368,130 @@ func AnalyzePlanHandler(c *gin.Context) {
 	// Pass the agent's response back to the client directly
 	c.Data(resp.StatusCode, "application/json", agentResponse)
 }
+
+// GetPropertiesByEmailHandler calls the local assessor MCP server to get properties by email using streamable http
+func GetPropertiesByEmailHandler(c *gin.Context) {
+	email := c.Param("email")
+
+	assessorURL := os.Getenv("ASSESSOR_URL")
+	if assessorURL == "" {
+		assessorURL = "http://127.0.0.1:8002/mcp"
+	}
+
+	// Create a new client, with no features.
+	client := mcp.NewClient(&mcp.Implementation{Name: "mcp-client", Version: "v1.0.0"}, nil)
+	transport := &mcp.StreamableClientTransport{
+		Endpoint: assessorURL,
+	}
+
+	cs, err := client.Connect(c.Request.Context(), transport, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to Assessor MCP"})
+		return
+	}
+	defer cs.Close()
+
+	result, err := cs.CallTool(c.Request.Context(), &mcp.CallToolParams{
+		Name:      "get_user_properties",
+		Arguments: map[string]any{"email": email},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to call MCP tool"})
+		return
+	}
+
+	for _, content := range result.Content {
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			var resp models.UserPropertiesResponse
+			if err := json.Unmarshal([]byte(textContent.Text), &resp); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse properties response"})
+				return
+			}
+			c.JSON(http.StatusOK, resp)
+			return
+		}
+	}
+
+	// Fallback to returning raw result if parsing fails
+	c.JSON(http.StatusOK, result)
+}
+
+type headerTransport struct {
+	base   http.RoundTripper
+	header http.Header
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	for k, vv := range t.header {
+		for _, v := range vv {
+			req.Header.Add(k, v)
+		}
+	}
+	if t.base == nil {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	return t.base.RoundTrip(req)
+}
+
+// GetMapDataHandler calls the Google Maps MCP Server
+func GetMapDataHandler(c *gin.Context) {
+	var reqBody models.MapSearchRequest
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+	if apiKey == "" {
+		// Log error but we could try sending anyway if it works anonymously? Maps API usually requires key.
+		log.Println("Warning: GOOGLE_MAPS_API_KEY environment variable is not set")
+	}
+
+	// Create a new client, with no features.
+	client := mcp.NewClient(&mcp.Implementation{Name: "mcp-client", Version: "v1.0.0"}, nil)
+	
+	// Create a custom transport to inject the API key header
+	var customClient *http.Client
+	if apiKey != "" {
+		customClient = &http.Client{
+			Transport: &headerTransport{
+				base:   http.DefaultTransport,
+				header: http.Header{"x-goog-api-key": []string{apiKey}},
+			},
+		}
+	}
+
+	transport := &mcp.StreamableClientTransport{
+		Endpoint:   "https://mapstools.googleapis.com/mcp",
+		HTTPClient: customClient,
+	}
+
+	cs, err := client.Connect(c.Request.Context(), transport, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to Maps MCP server"})
+		return
+	}
+	defer cs.Close()
+
+	result, err := cs.CallTool(c.Request.Context(), &mcp.CallToolParams{
+		Name:      "search_places",
+		Arguments: map[string]any{"text_query": reqBody.Address},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to call MCP tool"})
+		return
+	}
+
+	for _, content := range result.Content {
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			// The MCP response text is already JSON, send it directly
+			c.Data(http.StatusOK, "application/json", []byte(textContent.Text))
+			return
+		}
+	}
+
+	// Fallback to returning raw result if no text content
+	c.JSON(http.StatusOK, result)
+}
+

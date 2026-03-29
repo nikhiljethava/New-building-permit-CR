@@ -63,3 +63,14 @@ type PermitSubmission struct {
 	ReportJSON     string    `json:"report_json"` // Store the JSON report string
 	CreatedAt      time.Time `json:"created_at"`
 }
+
+// UserPropertiesResponse captures the response from the get_user_properties MCP tool
+type UserPropertiesResponse struct {
+	gorm.Model
+	Properties []string `json:"properties"`
+	Error      string   `json:"error,omitempty"`
+}
+
+type MapSearchRequest struct {
+	Address string `json:"address" binding:"required"`
+}
