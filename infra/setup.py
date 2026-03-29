@@ -209,7 +209,7 @@ def setup_infrastructure():
 
     # 9. Create Model Armor Template
     print("\n--- Creating Model Armor Template ---")
-    model_armor_location = "us-central1"
+    model_armor_location = location
     model_armor_template_id = "permit-guard-template"
     template_path = "model-armor/template.json"
     
@@ -217,8 +217,9 @@ def setup_infrastructure():
         with open(template_path, "r") as f:
             template_json = f.read()
         
-        # Replace YOUR_PROJECT
+        # Replace YOUR_PROJECT and location
         template_json = template_json.replace("YOUR_PROJECT", project_id)
+        template_json = template_json.replace("us-central1", model_armor_location)
         template_data = json.loads(template_json)
         
         token = run_command("gcloud auth application-default print-access-token", ignore_errors=True)
