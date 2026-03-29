@@ -313,7 +313,7 @@ class AIService:
                      try:
                          return json.loads(potential_json)
                      except json.JSONDecodeError:
-                         pass
+                         logger.debug(f"Failed to decode potential JSON: {potential_json}")
 
                  # Markdown cleanup fallback
                  if "```json" in cleaned_text:
