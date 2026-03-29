@@ -83,7 +83,7 @@ steps:
       - "all"
       - "--labels=appid=building-permit"
       - "--add-volume=name=gcs-db,type=cloud-storage,bucket=${PROJECT_ID}-building-permit-assessor-db"
-      - "--add-volume-mount=volume=gcs-db,mount-path=/app/data"      
+      - "--add-volume-mount=volume=gcs-db,mount-path=/app/data"
 
 substitutions:
   _REGION: ${_REGION}

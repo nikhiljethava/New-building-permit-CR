@@ -192,20 +192,26 @@ def seed_data(c):
     ]
     c.executemany('INSERT INTO zoning_rules VALUES (?,?,?,?,?,?,?)', zoning_rules)
 
-    # Seed hardcoded users
-    users = [
-        ("testuser@example.com", "Test User"),
-        ("admin@example.com", "Admin User")
-    ]
-    c.executemany('INSERT INTO users VALUES (?,?)', users)
+    # Associate every property owner with a user account and map their properties
+    users_dict = {}
+    user_properties = []
 
-    # Map users to some properties
-    user_properties = [
-        ("testuser@example.com", "1600 Amphitheatre Pkwy, Mountain View, CA 94043"),
-        ("testuser@example.com", "1 Apple Park Way, Cupertino, CA 95014"),
-        ("testuser@example.com", "123 Main St, San Paloma, CA 95050"),
-        ("admin@example.com", "200 E Santa Clara St, San Jose, CA 95113")
-    ]
+    for apn, address, lot_size, owner, value in parcels:
+        # Create an email based on the owner's name
+        email = owner.lower().replace(" ", ".") + "@example.com"
+        users_dict[email] = owner
+        user_properties.append((email, address))
+
+    # Also add some default test users
+    users_dict["testuser@example.com"] = "Test User"
+    users_dict["admin@example.com"] = "Admin User"
+    user_properties.append(("testuser@example.com", "1600 Amphitheatre Pkwy, Mountain View, CA 94043"))
+    user_properties.append(("testuser@example.com", "1 Apple Park Way, Cupertino, CA 95014"))
+    user_properties.append(("testuser@example.com", "123 Main St, San Paloma, CA 95050"))
+    user_properties.append(("admin@example.com", "200 E Santa Clara St, San Jose, CA 95113"))
+
+    users = [(email, name) for email, name in users_dict.items()]
+    c.executemany('INSERT INTO users VALUES (?,?)', users)
     c.executemany('INSERT INTO user_properties (user_email, address) VALUES (?,?)', user_properties)
 
 if __name__ == "__main__":
