@@ -114,7 +114,6 @@ def lookup_parcel(apn: str) -> dict:
     c = conn.cursor()
     c.execute("SELECT * FROM parcels WHERE apn = ?", (apn,))
     row = c.fetchone()
-    conn.close()
     if row:
         return dict(row)
     return {"error": f"Parcel not found for APN: {apn}"}
@@ -131,7 +130,6 @@ def get_zoning_classification(address: str) -> str:
     c = conn.cursor()
     c.execute("SELECT zoning_code FROM zoning_by_address WHERE address LIKE ?", (f"%{address}%",))
     row = c.fetchone()
-    conn.close()
     if row:
         return row[0]
     return "Unknown"
@@ -149,7 +147,6 @@ def get_setback_requirements(zoning_code: str) -> dict:
     c = conn.cursor()
     c.execute("SELECT * FROM zoning_rules WHERE zoning_code = ?", (zoning_code,))
     row = c.fetchone()
-    conn.close()
     if row:
         return dict(row)
     return {"error": f"Zoning code not found: {zoning_code}"}
@@ -175,8 +172,6 @@ def add_parcel(apn: str, address: str, lot_size_sqft: int, owner: str, assessed_
         return {"status": "success", "message": f"Parcel {apn} added successfully."}
     except Exception as e:
         return {"error": str(e)}
-    finally:
-        conn.close()
 
 @mcp_server.tool(
     annotations=ToolAnnotations(
@@ -205,8 +200,6 @@ def rezone_address(address: str, new_zoning_code: str) -> dict:
         return {"status": "success", "message": f"Address '{address}' rezoned to {new_zoning_code}."}
     except Exception as e:
         return {"error": str(e)}
-    finally:
-        conn.close()
 
 @mcp_server.tool(
     annotations=ToolAnnotations(
@@ -235,8 +228,6 @@ def add_zoning_rule(zoning_code: str, description: str, max_height_ft: int, max_
         return {"status": "success", "message": f"Zoning rule for '{zoning_code}' added/updated."}
     except Exception as e:
         return {"error": str(e)}
-    finally:
-        conn.close()
 
 @mcp_server.tool(
     annotations=ToolAnnotations(
@@ -258,8 +249,6 @@ def get_user_properties(email: str) -> dict:
         return {"properties": properties}
     except Exception as e:
         return {"error": str(e)}
-    finally:
-        conn.close()
 
 if __name__ == "__main__":
     asyncio.run(
