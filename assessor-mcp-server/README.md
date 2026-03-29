@@ -46,6 +46,15 @@ make start
 
 The server will start on port `8002` by default and expose the MCP SSE endpoint.
 
+## Onboarding to Agent Registry
+
+Once deployed to Cloud Run, you can register this component with the Agent Registry using the provided script in the `infra` directory:
+
+```bash
+cd ../infra
+make onboard-assessor
+```
+
 ## Database
 
 The server uses a local SQLite database (`assessor.db`). On the first run, it will automatically initialize the schema and seed it with sample data for San Paloma County.

@@ -54,6 +54,10 @@ This will:
 - Create a Vertex AI RAG Corpus named `ca-building-codes` in `us-west1` and upload documents from `building-codes/`.
 - Deploys the Vertex AI Agent Engine using the logic in the `agent-engine/` directory.
 
+To dynamically onboard your deployed agents to the Agent Registry, run from the `infra` directory:
+```bash
+make onboard
+```
 
 ### 2. Manual Setup (Document AI)
 
