@@ -22,6 +22,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"bufio"
 	"net/http"
 	"os"
 	"strings"
@@ -366,4 +367,257 @@ func AnalyzePlanHandler(c *gin.Context) {
 
 	// Pass the agent's response back to the client directly
 	c.Data(resp.StatusCode, "application/json", agentResponse)
+}
+
+// GetPropertiesByEmailHandler calls the local assessor MCP server to get properties by email using MCP over SSE
+func GetPropertiesByEmailHandler(c *gin.Context) {
+	email := c.Param("email")
+
+	assessorURL := os.Getenv("ASSESSOR_URL")
+	if assessorURL == "" {
+		assessorURL = "http://127.0.0.1:8002"
+	}
+	assessorURL = strings.TrimSuffix(assessorURL, "/")
+
+	// 1. Initiate SSE connection
+	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", assessorURL+"/sse", nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
+		return
+	}
+	req.Header.Set("Accept", "text/event-stream")
+
+	resp, err := agentHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("Error connecting to MCP SSE: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to connect to Assessor MCP"})
+		return
+	}
+	// We leave the body open intentionally as it's an SSE stream, we'll close it in a defer
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Assessor server rejected SSE connection"})
+		return
+	}
+
+	// 2. Read the stream to get the endpoint URI
+	reader := bufio.NewReader(resp.Body)
+	var endpointURI string
+
+	// Wait for the "endpoint" event
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			log.Printf("Error reading SSE stream: %v", err)
+			c.JSON(http.StatusBadGateway, gin.H{"error": "Lost connection to Assessor MCP"})
+			return
+		}
+
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "event: endpoint") {
+			// Next line should be the data with the URL
+			dataLine, err := reader.ReadString('\n')
+			if err == nil && strings.HasPrefix(dataLine, "data: ") {
+				endpointURI = strings.TrimSpace(strings.TrimPrefix(dataLine, "data: "))
+				break
+			}
+		}
+	}
+
+	if endpointURI == "" {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Did not receive endpoint from MCP server"})
+		return
+	}
+
+	// FastMCP sends relative URLs like `/messages?session_id=...`
+	postURL := endpointURI
+	if strings.HasPrefix(endpointURI, "/") {
+	    postURL = assessorURL + endpointURI
+	}
+
+	// 3. POST the JSON-RPC tool call payload to the messages endpoint
+	payload := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name": "get_user_properties",
+			"arguments": map[string]interface{}{
+				"email": email,
+			},
+		},
+	}
+
+	payloadBytes, _ := json.Marshal(payload)
+
+	// We MUST send the initial JSON-RPC init message first
+	initPayload := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      0,
+		"method":  "initialize",
+		"params": map[string]interface{}{
+			"protocolVersion": "2024-11-05",
+			"capabilities":    map[string]interface{}{},
+			"clientInfo": map[string]interface{}{
+				"name":    "go-client",
+				"version": "1.0.0",
+			},
+		},
+	}
+
+	initBytes, _ := json.Marshal(initPayload)
+	initReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST", postURL, bytes.NewBuffer(initBytes))
+	initReq.Header.Set("Content-Type", "application/json")
+	initResp, err := agentHTTPClient.Do(initReq)
+	if err == nil {
+	    initResp.Body.Close()
+	}
+
+	// Now send the actual tool call
+	postReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST", postURL, bytes.NewBuffer(payloadBytes))
+	postReq.Header.Set("Content-Type", "application/json")
+
+	postResp, err := agentHTTPClient.Do(postReq)
+	if err != nil {
+		log.Printf("Error posting to MCP messages: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to send message to Assessor MCP"})
+		return
+	}
+	postResp.Body.Close() // The response is just an accepted ack, the real result comes on the SSE stream
+
+	// 4. Read the SSE stream for the result
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "event: message") {
+			// Next line is the JSON-RPC response
+			dataLine, err := reader.ReadString('\n')
+			if err == nil && strings.HasPrefix(dataLine, "data: ") {
+				rpcStr := strings.TrimPrefix(dataLine, "data: ")
+
+				var rpcRes map[string]interface{}
+				if err := json.Unmarshal([]byte(rpcStr), &rpcRes); err == nil {
+					// Check if this is the response for our tool call (id: 1)
+					if id, ok := rpcRes["id"].(float64); ok && id == 1 {
+						// Extract content
+						if resObj, ok := rpcRes["result"].(map[string]interface{}); ok {
+							if contentArr, ok := resObj["content"].([]interface{}); ok && len(contentArr) > 0 {
+								if firstContent, ok := contentArr[0].(map[string]interface{}); ok {
+									if textStr, ok := firstContent["text"].(string); ok {
+										// We updated the Python FastMCP server to return valid JSON strings.
+										var parsed map[string]interface{}
+										if err := json.Unmarshal([]byte(textStr), &parsed); err == nil {
+											if props, ok := parsed["properties"]; ok {
+												c.JSON(http.StatusOK, gin.H{"properties": props})
+												return
+											}
+										}
+									}
+								}
+							}
+						}
+						// If we couldn't parse the deep content, just return raw
+						c.JSON(http.StatusOK, rpcRes)
+						return
+					}
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusGatewayTimeout, gin.H{"error": "Timed out waiting for Assessor MCP response"})
+}
+
+type MapSearchRequest struct {
+	Address string `json:"address" binding:"required"`
+}
+
+// GetMapDataHandler calls the Google Maps MCP Server
+func GetMapDataHandler(c *gin.Context) {
+	var reqBody MapSearchRequest
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+	if apiKey == "" {
+		// Log error but we could try sending anyway if it works anonymously? Maps API usually requires key.
+		log.Println("Warning: GOOGLE_MAPS_API_KEY environment variable is not set")
+	}
+
+	payload := map[string]interface{}{
+		"method": "tools/call",
+		"params": map[string]interface{}{
+			"name": "search_places",
+			"arguments": map[string]interface{}{
+				"text_query": reqBody.Address,
+			},
+		},
+		"jsonrpc": "2.0",
+		"id":      1,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare map request"})
+		return
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), "POST", "https://mapstools.googleapis.com/mcp", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create map request"})
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if apiKey != "" {
+		req.Header.Set("x-goog-api-key", apiKey)
+	}
+
+	resp, err := agentHTTPClient.Do(req)
+	if err != nil {
+		log.Printf("Error calling maps MCP: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch map data"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Maps API error: status %d, body: %s", resp.StatusCode, string(body))
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Maps API returned an error"})
+		return
+	}
+
+	var rawResult map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&rawResult); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse map response"})
+		return
+	}
+
+	// Try to unpack the Google Maps MCP JSON-RPC format
+	// {"jsonrpc": "2.0", "id": 1, "result": {"content": [{"type": "text", "text": "{\"places\": [...]}"}]}}
+	if resultObj, ok := rawResult["result"].(map[string]interface{}); ok {
+		if contentArr, ok := resultObj["content"].([]interface{}); ok && len(contentArr) > 0 {
+			if firstContent, ok := contentArr[0].(map[string]interface{}); ok {
+				if textStr, ok := firstContent["text"].(string); ok {
+					var parsedText map[string]interface{}
+					if err := json.Unmarshal([]byte(textStr), &parsedText); err == nil {
+						c.JSON(http.StatusOK, parsedText)
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to returning raw result if parsing fails
+	c.JSON(http.StatusOK, rawResult)
 }
