@@ -40,25 +40,26 @@ The project consists of several primary components communicating over standard H
     - Proxying chat requests to the Compliance Agent.
     - CORS management for frontend requests.
 
-### C. Vertex AI Reasoning Engine (Shared Services)
+### C. Vertex AI Agent Engine (Shared Services)
 - **Deployment Strategy:** `agent-engine/` container.
 - **Tech Stack:** Python + Google ADK + Vertex AI SDK.
 - **Responsibilities:**
-    - **Session Management:** Provides a centralized `VertexAiSessionService` for persistent, scalable conversation history across all project agents.
+    - **Session Management:** Provides a centralized `VertexAiSessionService` for persistent, scalable conversation history across all project agents (e.g., Compliance Agent and Contractor Agent).
     - **Memory Bank:** Implements a `VertexAiMemoryBankService` for long-term storage and retrieval of regulatory context, past violations, and interaction history.
-    - **Orchestration:** Acts as the host for tool specifications and schemas used in reasoning and agent-to-agent interactions.
+    - **Orchestration:** Acts as the core Vertex AI Agent Engine that scales and hosts the AI components, maintaining the conversational state.
 
 ### D. Compliance Agent (Python AI Service)
 - **Framework:** FastAPI.
 - **AI Stack:** 
-    - **Vertex AI (Gemini 1.5 Pro/Flash):** For visual and text analysis of building plans.
-    - **Document AI:** For high-fidelity text extraction from PDFs.
-    - **Vertex AI Search (RAG):** (Planned/Integrated) For querying against local building codes.
+    - **Vertex AI (Gemini 2.5 Pro/Flash):** For visual and text analysis of building plans.
+    - **Document AI:** For high-fidelity text extraction from PDFs. This output is passed as context to Gemini, rather than being used to query RAG directly.
+    - **Vertex AI Search (RAG):** Accessed via a `FunctionTool` for querying against local building codes without violating multimodal restrictions.
+    - **Model Armor:** Implements safety guardrails, including protection against prompt injection, hate speech, and custom PII filtering (e.g., blocking "LEGAL_LIABILITY_PHRASES" to prevent the agent from assuming liability).
 - **Observability:** OpenTelemetry (Google Cloud Trace).
 - **Responsibilities:**
-    - Processing PDF files.
-    - Extracting and analyzing building plan details.
-    - Handling interactive follow-up questions about violations using conversational AI.
+    - Processing PDF files using Document AI and multimodal context.
+    - Extracting and analyzing building plan details by querying RAG as a tool.
+    - Handling interactive follow-up questions about violations using conversational AI, guarded by Model Armor.
     - Returning structured JSON compliance reports.
 
 ### E. Contractor Agent (A2A AI Service)
@@ -188,9 +189,11 @@ The system uses SQLite for simplicity in the current implementation.
     - Cloud Trace API enabled.
 
 ### Local Development
-1. **Agent:** `cd agent && make run` (starts on port 8000)
-2. **API:** `cd api && make run` (starts on port 8080)
-3. **Frontend:** `cd frontend && make run` (starts on port 5173)
+1. **Agent:** `cd agent && make start` (starts on port 8000)
+2. **Contractor Agent:** `cd contractor-agent && make start` (starts on port 8001 or 8081)
+3. **Assessor MCP Server:** `cd assessor-mcp-server && make start` (starts on port 8002)
+4. **API:** `cd api && make start` (starts on port 8080)
+5. **Frontend:** `cd frontend && make start` (starts on port 5173)
 
 ### Containerization
 Dockerfiles are provided for each service:
@@ -202,8 +205,9 @@ A `Makefile` in each directory handles build and run commands.
 
 ### F. Assessor MCP Server (Python Service)
 - **Framework:** FastAPI + `mcp.server.fastmcp`.
+- **Database:** SQLite (`assessor.db`).
 - **Observability:** OpenTelemetry.
 - **Responsibilities:**
-    - Exposing a Model Context Protocol (MCP) server over Streamable HTTP.
-    - Providing fake San Paloma County data to the AI agents for context via tools.
-    - Implementing `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools.
+    - Exposing a Model Context Protocol (MCP) server over Streamable HTTP (port 8002).
+    - Providing fake San Paloma County property and zoning data to the AI agents via tools.
+    - Implementing tools such as `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements`.

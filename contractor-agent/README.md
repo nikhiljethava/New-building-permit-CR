@@ -18,7 +18,7 @@ uv sync
 
 ### Starting the Server
 
-The contractor agent is built with FastAPI. You can start the local development server using the provided `Makefile`:
+The contractor agent is built with FastAPI and conforms to the Agent-to-Agent (A2A) protocol. You can start the local development server using the provided `Makefile`:
 
 ```bash
 make start
