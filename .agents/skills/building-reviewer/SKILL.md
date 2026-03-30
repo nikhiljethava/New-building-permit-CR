@@ -48,8 +48,8 @@ This repository implements an agentic AI system designed to automate the review 
 - **Orchestration:** The Go backend manages business logic, user state (SQLite/GORM), and acts as a secure proxy to the AI analysis engine.
 
 ### Cloud Native Integrations
-- **Google Cloud Platform (GCP):** Deep integration with Vertex AI, Document AI, and Cloud Trace.
-- **Observability:** Built-in distributed tracing using OpenTelemetry (Go & Python) for monitoring analysis latency and debugging AI pipelines.
+- **Google Cloud Platform (GCP):** Deep integration with Vertex AI, Document AI, BigQuery, and Cloud Trace.
+- **Observability:** Built-in distributed tracing using OpenTelemetry (Go & Python) for monitoring analysis latency, and the BigQuery Agent Analytics plugin (`google.adk.plugins.bigquery_agent_analytics_plugin`) for tracking agent performance and user interactions over time.
 - **Scalability:** Containerized workloads (Dockerfiles included) ready for deployment to Cloud Run or GKE.
 
 ---

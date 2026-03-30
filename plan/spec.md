@@ -55,7 +55,7 @@ The project consists of several primary components communicating over standard H
     - **Document AI:** For high-fidelity text extraction from PDFs. This output is passed as context to Gemini, rather than being used to query RAG directly.
     - **Vertex AI Search (RAG):** Accessed via a `FunctionTool` for querying against local building codes without violating multimodal restrictions.
     - **Model Armor:** Implements safety guardrails, including protection against prompt injection, hate speech, and custom PII filtering (e.g., blocking "LEGAL_LIABILITY_PHRASES" to prevent the agent from assuming liability).
-- **Observability:** OpenTelemetry (Google Cloud Trace).
+- **Observability:** OpenTelemetry (Google Cloud Trace) and BigQuery Agent Analytics plugin for tracking agent performance, usage, and interactions.
 - **Responsibilities:**
     - Processing PDF files using Document AI and multimodal context.
     - Extracting and analyzing building plan details by querying RAG as a tool.

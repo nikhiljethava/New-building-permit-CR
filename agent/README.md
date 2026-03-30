@@ -11,13 +11,14 @@ This is the Python-based AI agent for the **Building Permit Compliance Portal**.
 - **Persistent Context**: Uses the Vertex AI Agent Engine for centralized session management and memory across all agents in the ecosystem.
 - **A2A Interoperability**: Integrates with the Contractor Agent using the Agent-to-Agent (A2A) protocol.
 - **Assessor Data Integration**: Uses a Model Context Protocol (MCP) server to lookup parcel and zoning data.
-- **Observability**: Fully instrumented with OpenTelemetry and Google Cloud Trace.
+- **Observability**: Fully instrumented with OpenTelemetry and Google Cloud Trace, and utilizes the BigQuery Agent Analytics plugin to track performance metrics and interaction history.
 
 ## Tech Stack
 
 - **Language**: Python 3.12+
 - **Framework**: FastAPI
 - **AI/ML**: Vertex AI (Gemini), Document AI, Vertex AI RAG Engine
+- **Data & Analytics**: BigQuery
 - **Tooling**: Google ADK (Agent Development Kit), `a2a-sdk`
 
 ## Getting Started
@@ -50,6 +51,10 @@ GEMINI_MODEL_NAME=gemini-2.5-pro
 REASONING_ENGINE_APP_NAME=projects/your-project/locations/us-central1/reasoningEngines/your-engine-id
 CONTRACTOR_AGENT_URL=http://0.0.0.0:8001/a2a/building_permit_contractor_agent/.well-known/agent-card.json
 ASSESSOR_MCP_SERVER_URL=http://0.0.0.0:8002
+BQ_ANALYTICS_DATASET_ID=adk_agent_analytics
+BQ_ANALYTICS_DATASET_LOCATION=us
+BQ_ANALYTICS_GCS_BUCKET=your-analytics-bucket
+BQ_ANALYTICS_CONNECTION_ID=your-bq-connection-id
 ```
 
 ### Running Locally
