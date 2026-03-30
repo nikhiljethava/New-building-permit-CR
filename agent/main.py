@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -27,6 +28,10 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize OpenTelemetry
 # setup_telemetry()
@@ -104,7 +109,8 @@ async def analyze_plan(file: UploadFile = File(...)):
 
     # 1. Use Document AI to extract text (Optional, if we want to query RAG with text specifically)
     extracted_text = ai_service.extract_text_from_pdf(content)
-
+    # log the extracted text
+    logger.info(f"Extracted text: {extracted_text}")
     # 2. Use Gemini and Vertex RAG to analyze the plan (passing the raw PDF for Vision)
     analysis_result = await ai_service.analyze_plan_with_gemini(extracted_text, content)
 

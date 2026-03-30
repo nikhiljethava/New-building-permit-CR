@@ -1,3 +1,17 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import subprocess
 import sys
@@ -60,6 +74,7 @@ def setup_infrastructure():
         "agentregistry.googleapis.com",
         "bigquery.googleapis.com",
         "secretmanager.googleapis.com",
+        "modelarmor.googleapis.com",
     ]
     for api in apis:
         print(f"Enabling {api}...")
@@ -92,7 +107,8 @@ def setup_infrastructure():
         "roles/secretmanager.secretAccessor",
         "roles/browser",
         "roles/cloudapiregistry.viewer",
-        "roles/monitoring.metricWriter"
+        "roles/monitoring.metricWriter",
+        "roles/modelarmor.admin"
     ]
     for role in roles:
         print(f"Adding role {role}...")
@@ -204,6 +220,55 @@ def setup_infrastructure():
                 print(f"Updated agent/.cloudbuild/deploy.yaml with Document AI processor ID: {docai_processor_id}")
     else:
         print("Warning: Could not fetch auth token. Skipping Document AI processor creation.")
+
+    # 9. Create Model Armor Template
+    print("\n--- Creating Model Armor Template ---")
+    model_armor_location = location
+    model_armor_template_id = "permit-guard-template"
+    template_path = "model-armor/template.json"
+    
+    if os.path.exists(template_path):
+        with open(template_path, "r") as f:
+            template_json = f.read()
+        
+        # Replace YOUR_PROJECT and location
+        template_json = template_json.replace("YOUR_PROJECT", project_id)
+        template_json = template_json.replace("us-central1", model_armor_location)
+        template_data = json.loads(template_json)
+        
+        token = run_command("gcloud auth application-default print-access-token", ignore_errors=True)
+        if token:
+            ma_url = f"https://modelarmor.googleapis.com/v1/projects/{project_id}/locations/{model_armor_location}/templates"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            
+            # Check if exists
+            req_list = urllib.request.Request(f"{ma_url}/{model_armor_template_id}", headers=headers, method="GET")
+            ma_exists = False
+            try:
+                with urllib.request.urlopen(req_list) as response:
+                    ma_exists = True
+                    print(f"Model Armor Template '{model_armor_template_id}' already exists.")
+            except Exception as e:
+                pass
+                
+            if not ma_exists:
+                print(f"Creating Model Armor template: {model_armor_template_id}...")
+                ma_create_url = f"{ma_url}?templateId={model_armor_template_id}"
+                req_create = urllib.request.Request(ma_create_url, data=json.dumps(template_data).encode("utf-8"), headers=headers, method="POST")
+                try:
+                    with urllib.request.urlopen(req_create) as response:
+                        result = json.loads(response.read().decode("utf-8"))
+                        print(f"Successfully created Model Armor template: {result.get('name')}")
+                except urllib.error.HTTPError as e:
+                    error_body = e.read().decode("utf-8")
+                    print(f"Failed to create Model Armor template. HTTP Error {e.code}: {e.reason}")
+                    print(f"Details: {error_body}")
+                except Exception as e:
+                    print(f"Failed to create Model Armor template: {e}")
+        else:
+            print("Warning: Could not fetch auth token. Skipping Model Armor template creation.")
+    else:
+        print(f"Warning: Model Armor template file '{template_path}' not found.")
 
     print("\nInfrastructure setup script completed successfully.")
 

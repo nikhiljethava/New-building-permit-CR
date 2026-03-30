@@ -34,7 +34,7 @@ import (
 
 var agentHTTPClient = &http.Client{
 	Transport: otelhttp.NewTransport(http.DefaultTransport),
-	Timeout:   60 * time.Second,
+	Timeout:   180 * time.Second,
 }
 
 type LoginRequest struct {
