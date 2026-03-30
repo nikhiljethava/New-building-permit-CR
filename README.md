@@ -18,9 +18,9 @@ An Agentic application to review building plans against the California Building 
 This is a monorepo containing:
 1. **Frontend**: React application built with Vite and Tailwind CSS.
 2. **API Gateway**: Go backend using the Gin framework to handle file uploads and orchestrate the AI analysis.
-3. **Compliance Agent**: Python service using FastAPI, Google Cloud Document AI, Vertex AI RAG Engine, and Gemini for building plan analysis.
+3. **Compliance Agent**: Python service using FastAPI, Google Cloud Document AI, Vertex AI RAG Engine, Model Armor, and Gemini for building plan analysis.
 4. **Contractor Agent**: A2A-compliant Python service for finding licensed contractors using Gemini and Google Search.
-5. **Assessor MCP Server**: Python service providing county data via the Model Context Protocol (MCP).
+5. **Assessor MCP Server**: Python service providing county property and zoning data via the Model Context Protocol (MCP).
 6. **Agent Engine**: Vertex AI Agent Engine for deploying and scaling the AI components, including centralized session management and memory.
 
 ## Documentation & Agent Skills

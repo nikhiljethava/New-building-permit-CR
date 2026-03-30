@@ -14,14 +14,15 @@ This repository implements an agentic AI system designed to automate the review 
 ## 1. Core AI & Analysis Skills
 
 ### Multimodal Document Understanding
-- **PDF Analysis:** Capability to process complex architectural drawings and text directly using Gemini 1.5 Pro.
-- **Structural Extraction:** Uses Google Cloud Document AI to perform high-fidelity OCR and layout analysis on building plans.
+- **PDF Analysis:** Capability to process complex architectural drawings and text directly using Gemini 2.5 Pro/Flash.
+- **Structural Extraction:** Uses Google Cloud Document AI to perform high-fidelity OCR and layout analysis on building plans. The extracted text is then passed alongside the raw PDF bytes to Gemini for complete context.
 - **Visual Verification:** Ability to "see" and interpret diagrams, symbols, and annotations in blueprints to verify spatial requirements (e.g., clearance, dimensions).
 
-### Regulatory Reasoning (RAG)
-- **Contextual Retrieval:** Employs Vertex AI RAG Engine to retrieve relevant sections from the California Building Standards Code (Title 24) and San Paloma County local reach codes.
+### Regulatory Reasoning (RAG) & Guardrails
+- **Contextual Retrieval:** Employs Vertex AI RAG Engine to retrieve relevant sections from the California Building Standards Code (Title 24) and San Paloma County local reach codes via a `FunctionTool` to ensure compatibility with multimodal interactions.
 - **Compliance Mapping:** Matches extracted plan data against retrieved regulatory text to identify specific violations or approved elements.
 - **Actionable Feedback:** Generates structured reports that include exact code sections, detailed descriptions of non-compliance, and specific suggestions for remediation.
+- **Model Armor (Safety & Liability):** Protects conversational interfaces from prompt injection, toxicity, and enforces custom PII filtering (e.g., blocking "LEGAL_LIABILITY_PHRASES") to ensure the agent does not assume legal liability or certify engineering advice.
 
 ### Shared Infrastructure & Persistent Context
 - **Vertex AI Session Management:** Centralized session service for persistent, scalable conversation history across all agents in the ecosystem.
@@ -31,24 +32,24 @@ This repository implements an agentic AI system designed to automate the review 
 ### Agent Interoperability (A2A)
 - **Protocol Compliance:** Adheres to the Agent-to-Agent (A2A) Protocol Specification for seamless communication between different AI agents.
 - **Agent Discovery:** Exposes standardized "Agent cards" (`.well-known/agent-card.json`) that describe agent capabilities, security requirements, and endpoints.
-- **Inter-Agent Coordination:** Uses `a2a-sdk` to enable agents (e.g., Compliance Agent and Contractor Agent) to discover and interact with each other.
+- **Inter-Agent Coordination:** Uses `a2a-sdk` to enable agents (e.g., Compliance Agent and Contractor Agent) to discover and interact with each other to find licensed contractors and propose structural remediation.
 
 ---
 
 ## 2. Technical Stack & Infrastructure Skills
 
 ### Assessor MCP Server (Data Retrieval)
-- **MCP Protocol:** Implements the Model Context Protocol (MCP) to expose property data as structured tools.
-- **Tool Integration:** Provides `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools via a Streamable HTTP connection.
-- **Data Management:** Capabilities to `add_parcel`, `rezone_address`, and `add_zoning_rule` to the county's assessor database.
+- **MCP Protocol:** Implements the Model Context Protocol (MCP) to expose property data as structured tools via a Streamable HTTP connection on port 8002.
+- **Tool Integration:** Provides `lookup_parcel`, `get_zoning_classification`, and `get_setback_requirements` tools to fetch fake San Paloma County property and zoning data.
+- **Data Management:** Capabilities to `add_parcel`, `rezone_address`, and `add_zoning_rule` to the county's assessor SQLite database.
 
 ### Microservices Architecture
 - **Polyglot Development:** Seamless integration between a Go-based API Gateway, a Python-based AI Agent, and a React-based Frontend.
 - **Orchestration:** The Go backend manages business logic, user state (SQLite/GORM), and acts as a secure proxy to the AI analysis engine.
 
 ### Cloud Native Integrations
-- **Google Cloud Platform (GCP):** Deep integration with Vertex AI, Document AI, and Cloud Trace.
-- **Observability:** Built-in distributed tracing using OpenTelemetry (Go & Python) for monitoring analysis latency and debugging AI pipelines.
+- **Google Cloud Platform (GCP):** Deep integration with Vertex AI, Document AI, BigQuery, and Cloud Trace.
+- **Observability:** Built-in distributed tracing using OpenTelemetry (Go & Python) for monitoring analysis latency, and the BigQuery Agent Analytics plugin (`google.adk.plugins.bigquery_agent_analytics_plugin`) for tracking agent performance and user interactions over time.
 - **Scalability:** Containerized workloads (Dockerfiles included) ready for deployment to Cloud Run or GKE.
 
 ---
