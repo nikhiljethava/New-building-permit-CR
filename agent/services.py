@@ -361,8 +361,6 @@ Output ONLY the JSON object, with no preamble or markdown fences.
                 user_content_parts.append(
                     Part(
                         text=(
-                            f"Document AI extracted the following text from the PDF "
-                            f"(use this to formulate precise code-lookup queries):\n\n"
                             f"{extracted_text[:8000]}"  # cap to avoid token overflow
                         )
                     )
