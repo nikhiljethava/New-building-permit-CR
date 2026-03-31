@@ -1,0 +1,267 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "lookup_parcel",
+        "description": "Lookup property details by Assessor's Parcel Number (APN).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "apn": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "apn"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_zoning_classification",
+        "description": "Get the zoning classification code for a given address.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "address"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_setback_requirements",
+        "description": "Get setback requirements, lot coverage limits, and height limits for a given zoning code.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "zoning_code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "zoning_code"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "add_parcel",
+        "description": "Add a new property to the assessor's database.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "apn": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string"
+            },
+            "lot_size_sqft": {
+              "type": "integer"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "assessed_value": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "apn",
+            "address",
+            "lot_size_sqft",
+            "owner",
+            "assessed_value"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "rezone_address",
+        "description": "Update the zoning classification code for a specific address.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "new_zoning_code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "address",
+            "new_zoning_code"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "add_zoning_rule",
+        "description": "Add or update the setback requirements and lot coverage limits for a zoning code.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "zoning_code": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "max_height_ft": {
+              "type": "integer"
+            },
+            "max_lot_coverage_percent": {
+              "type": "integer"
+            },
+            "front_setback_ft": {
+              "type": "integer"
+            },
+            "rear_setback_ft": {
+              "type": "integer"
+            },
+            "side_setback_ft": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "zoning_code",
+            "description",
+            "max_height_ft",
+            "max_lot_coverage_percent",
+            "front_setback_ft",
+            "rear_setback_ft",
+            "side_setback_ft"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_user_properties",
+        "description": "Get a list of properties associated with a user's email address.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "email": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "email"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      }
+    ]
+  }
+}

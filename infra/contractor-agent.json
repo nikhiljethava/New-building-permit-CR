@@ -1,0 +1,38 @@
+{
+  "capabilities": {
+    "streaming": true
+  },
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "description": "Finds licensed contractors for specific jobs.",
+  "name": "building_permit_contractor_agent",
+  "preferredTransport": "JSONRPC",
+  "protocolVersion": "0.3.0",
+  "skills": [
+    {
+      "description": "Finds licensed contractors for specific jobs. \n    I am an expert at finding licensed contractors for specific jobs in a given area.\n    Use the google_search tool to find real, highly-rated, licensed contractors that match the user's needs.\n    Always provide contact information, a brief description of the contractor, and why they are a good fit for the job.\n    If the user asks for contractors in a specific area (like San Paloma County), focus my search there.\n    ",
+      "examples": [],
+      "id": "building_permit_contractor_agent",
+      "name": "model",
+      "tags": [
+        "llm"
+      ]
+    },
+    {
+      "description": "google_search",
+      "id": "building_permit_contractor_agent-google_search",
+      "name": "google_search",
+      "tags": [
+        "llm",
+        "tools"
+      ]
+    }
+  ],
+  "supportsAuthenticatedExtendedCard": false,
+  "url": "https://building-permit-contractor-agent-1064111708665.us-central1.run.app/a2a/building_permit_contractor_agent",
+  "version": "0.1.0"
+}
