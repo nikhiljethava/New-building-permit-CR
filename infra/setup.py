@@ -17,6 +17,7 @@ import subprocess
 import sys
 import json
 import urllib.request
+import re
 def run_command(command, ignore_errors=False):
     """Run a shell command and print its output."""
     print(f"Running: {command}")
@@ -75,6 +76,7 @@ def setup_infrastructure():
         "bigquery.googleapis.com",
         "secretmanager.googleapis.com",
         "modelarmor.googleapis.com",
+        "mapstools.googleapis.com",
     ]
     for api in apis:
         print(f"Enabling {api}...")
@@ -144,6 +146,66 @@ def setup_infrastructure():
             run_command(f"gcloud secrets create {secret} --replication-policy=automatic --project {project_id}")
         else:
             print(f"Secret {secret} already exists.")
+
+    # 6a. Create, restrict, and store Maps API Key
+    print("\n--- Creating and Storing Maps API Key ---")
+    # Check if a key with display name "Maps API Key" already exists
+    # Note: gcloud services api-keys list does not support filtering by display name directly
+    # So, we list all and filter manually
+    existing_keys_json = run_command(f"gcloud services api-keys list --project={project_id} --format=json", ignore_errors=True)
+    existing_keys = json.loads(existing_keys_json) if existing_keys_json else []
+    
+    key_exists = False
+    key_name = None # To store the resource name of the existing key if found
+    for key in existing_keys:
+        if key.get("displayName") == "Maps API Key":
+            key_exists = True
+            key_name = key.get("name") # e.g., projects/PROJECT_NUMBER/locations/global/keys/KEY_ID
+            print(f"Maps API Key with display name 'Maps API Key' already exists: {key_name}. Skipping creation.")
+            break
+
+    if not key_exists:
+        print("Creating Maps API Key with restriction to mapstools.googleapis.com...")
+        # Create the key with display name and API target restriction
+        # Output: Created new key: projects/PROJECT_NUMBER/locations/global/keys/KEY_ID
+        create_output = run_command(f"gcloud services api-keys create --display-name=\"Maps API Key\" --api-target=service=mapstools.googleapis.com --project={project_id}")
+
+        match = re.search(r"projects/.*/locations/.*/keys/.*", create_output)
+        if match:
+            key_name = match.group(0) # This will be the full resource name of the key
+            print(f"Successfully created key: {key_name}")
+
+            # Get the cleartext key string
+            print("Retrieving key string...")
+            key_string = run_command(f"gcloud services api-keys get-key-string {key_name} --project={project_id}")
+
+            if key_string:
+                # Store the key in Secret Manager
+                print("Storing key in Secret Manager...")
+                run_command(f"echo -n '{key_string}' | gcloud secrets versions add maps-api-key --data-file=- --project={project_id}")
+                print("Successfully stored Maps API Key in Secret Manager.")
+            else:
+                print("Error: Failed to retrieve API key string after creation.")
+        else:
+            print("Error: Failed to parse key name from creation output.")
+    else: # If key already exists, still try to store its string in Secret Manager
+        if key_name:
+            print(f"Retrieving key string for existing key: {key_name}...")
+            key_string = run_command(f"gcloud services api-keys get-key-string {key_name} --project={project_id}")
+            if key_string:
+                print("Storing existing key in Secret Manager...")
+                run_command(f"echo -n '{key_string}' | gcloud secrets versions add maps-api-key --data-file=- --project={project_id}")
+                print("Successfully stored existing Maps API Key in Secret Manager.")
+            else:
+                print("Error: Failed to retrieve API key string for existing key.")
+
+    # 6b. Grant Compute Engine SA access to the secret
+    print("\n--- Granting Compute Engine SA access to Maps API Key secret ---")
+    project_number = run_command(f"gcloud projects describe {project_id} --format=\"value(projectNumber)\"")
+    compute_sa_email = f"{project_number}-compute@developer.gserviceaccount.com"
+    print(f"Granting 'secretmanager.secretAccessor' role to {compute_sa_email} for secret 'maps-api-key'...")
+    run_command(f"gcloud secrets add-iam-policy-binding maps-api-key --member=serviceAccount:{compute_sa_email} --role=roles/secretmanager.secretAccessor --project={project_id}", ignore_errors=True)
+    print("Successfully granted access.")
 
     # 7. Create BigQuery Dataset
     print("\n--- Creating BigQuery Dataset ---")

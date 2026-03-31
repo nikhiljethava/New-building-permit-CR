@@ -106,8 +106,15 @@ def main():
     
     try:
         with urllib.request.urlopen(req2) as response:
-            tools_resp = json.loads(response.read().decode("utf-8"))
-            spec_content = json.dumps(tools_resp.get("result", {}))
+            raw_data = response.read().decode("utf-8")
+            # Handle SSE format
+            for line in raw_data.strip().split('\n'):
+                if line.startswith('data:'):
+                    # remove "data:" prefix and strip leading/trailing whitespace
+                    json_data = line.replace('data:', '').strip()
+                    tools_resp = json.loads(json_data)
+                    spec_content = json.dumps(tools_resp.get("result", {}))
+                    break # Assuming we only need the first data message
     except URLError as e:
         print(f"Error fetching tools list: {e}")
         sys.exit(1)
