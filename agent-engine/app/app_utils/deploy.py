@@ -357,16 +357,16 @@ def deploy_agent_engine_app(
     # Add agent garden labels if configured
 
     # Dynamically import the agent instance to generate class_methods
-    logging.info(f"Importing {entrypoint_module}.{entrypoint_object}")
-    module = importlib.import_module(entrypoint_module)
-    agent_instance = getattr(module, entrypoint_object)
+    # logging.info(f"Importing {entrypoint_module}.{entrypoint_object}")
+    # module = importlib.import_module(entrypoint_module)
+    # agent_instance = getattr(module, entrypoint_object)
 
     # If the agent_instance is a coroutine, await it to get the actual instance
-    if inspect.iscoroutine(agent_instance):
-        logging.info(f"Detected coroutine, awaiting {entrypoint_object}...")
-        agent_instance = asyncio.run(agent_instance)
+    # if inspect.iscoroutine(agent_instance):
+    #    logging.info(f"Detected coroutine, awaiting {entrypoint_object}...")
+    #    agent_instance = asyncio.run(agent_instance)
     # Generate class methods spec from register_operations
-    class_methods_list = generate_class_methods_from_agent(agent_instance)
+    # class_methods_list = generate_class_methods_from_agent(agent_instance)
 
     config = AgentEngineConfig(
         display_name=display_name,

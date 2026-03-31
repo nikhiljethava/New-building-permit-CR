@@ -13,6 +13,5 @@
 # limitations under the License.
 
 # pylint: disable=import-error
-from .agent import app
 
 __all__ = ["app"]
