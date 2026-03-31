@@ -21,7 +21,7 @@ import vertexai
 # Configuration
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.popen("gcloud config get-value project").read().strip()
 LOCATION = "us-west1"
-CORPUS_DISPLAY_NAME = "ca-building-codes"
+CORPUS_DISPLAY_NAME = os.getenv("RAG_CORPUS_DISPLAY_NAME", "ca-building-codes")
 BUILDING_CODES_DIR = "../building-codes"
 
 def setup_rag():
@@ -80,7 +80,7 @@ def setup_rag():
     if os.path.exists(deploy_yaml_path):
         with open(deploy_yaml_path, "r") as f:
             content = f.read()
-        content = re.sub(r"ragCorpora/\d+", f"ragCorpora/{corpus_id}", content)
+        content = re.sub(r"_RAG_CORPORA: \d+", f"_RAG_CORPORA: {corpus_id}", content)
         with open(deploy_yaml_path, "w") as f:
             f.write(content)
         print("Updated agent/.cloudbuild/deploy.yaml with RAG corpus ID.")
