@@ -1,0 +1,52 @@
+steps:
+  # Build Compliance Agent
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:latest', './agent']
+    id: 'build-agent'
+
+  # Build Contractor Agent
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest', './contractor-agent']
+    id: 'build-contractor-agent'
+
+  # Build Assessor MCP Server
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest', './assessor-mcp-server']
+    id: 'build-assessor-mcp'
+
+  # Build API Gateway
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:latest', './api']
+    id: 'build-api'
+
+  # Build Frontend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA', 
+      '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:latest', 
+      '--build-arg', 'PROJECT_ID=$PROJECT_ID',
+      '--build-arg', 'VITE_GOOGLE_MAPS_API_KEY=$_GOOGLE_MAPS_API_KEY',
+      './frontend'
+    ]
+    id: 'build-frontend'
+
+images:
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:$COMMIT_SHA'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:latest'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:$COMMIT_SHA'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:$COMMIT_SHA'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:$COMMIT_SHA'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:latest'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:$COMMIT_SHA'
+  - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:latest'
+
+substitutions:
+  _LOCATION: 'us-central1'
+  _REPO_NAME: 'building-permit'
+  _GOOGLE_MAPS_API_KEY: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY
