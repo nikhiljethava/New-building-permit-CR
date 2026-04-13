@@ -47,7 +47,10 @@ try:
         initial_resource=Resource.create(
             attributes={
                 SERVICE_NAME: OTEL_SERVICE_NAME,
-                "gcp.project_id": project_id,
+                "cloud.provider": "gcp",
+                "cloud.account.id": project_id,
+                "functional_type": "MCP",
+                "cloud.region": os.getenv("GOOGLE_CLOUD_LOCATION", ""),
             }
         ),
     )

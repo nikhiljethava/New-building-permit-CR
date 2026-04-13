@@ -43,6 +43,19 @@ allow_origins = (
 AGENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 bucket_name = f"gs://{os.getenv("GOOGLE_CLOUD_PROJECT")}"
 
+# Set OpenTelemetry resource attributes
+otel_attrs = os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "")
+new_attrs = "functional_type=Agent,cloud.provider=gcp,cloud.account.id=" + os.getenv("GOOGLE_CLOUD_PROJECT", "")
+location = os.getenv("GOOGLE_CLOUD_LOCATION", "")
+if location:
+    new_attrs += ",cloud.region=" + location
+
+if otel_attrs:
+    os.environ["OTEL_RESOURCE_ATTRIBUTES"] = otel_attrs + "," + new_attrs
+else:
+    os.environ["OTEL_RESOURCE_ATTRIBUTES"] = new_attrs
+
+
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     web=False,

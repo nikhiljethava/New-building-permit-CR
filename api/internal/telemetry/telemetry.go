@@ -54,6 +54,9 @@ func InitTelemetry(ctx context.Context, projectID, location, serviceName string)
 		resource.WithDetectors(gcp.NewDetector()),
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
+			attribute.String("cloud.provider", "gcp"),
+			attribute.String("cloud.account.id", projectID),
+			attribute.String("cloud.region", location),
 			attribute.String("gcp.project_id", projectID),
 		),
 	)
