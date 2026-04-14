@@ -33,7 +33,6 @@ ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 ENV OTEL_SERVICE_NAME=building-permit-frontend
 ENV OTEL_TRACES_EXPORTER=otlp
 ENV OTEL_EXPORTER_OTLP_ENDPOINT=https://telemetry.googleapis.com
-ENV VITE_OTLP_EXPORTER_URL=https://telemetry.googleapis.com/v1/traces
 
 
 # Copy package files and install all dependencies (including devDependencies for the build)
