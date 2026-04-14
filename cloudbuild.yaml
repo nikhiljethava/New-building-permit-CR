@@ -31,6 +31,85 @@ steps:
     ]
     id: 'build-frontend'
 
+  # Deploy Contractor Agent
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: [
+      'run', 'deploy', 'building-permit-contractor-agent',
+      '--image', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest',
+      '--platform', 'managed',
+      '--region', '${_LOCATION}',
+      '--allow-unauthenticated'
+    ]
+    id: 'deploy-contractor-agent'
+    waitFor: ['build-contractor-agent']
+
+  # Deploy Assessor MCP Server
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: [
+      'run', 'deploy', 'building-permit-assessor-mcp',
+      '--image', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest',
+      '--platform', 'managed',
+      '--region', '${_LOCATION}',
+      '--allow-unauthenticated',
+      '--port', '8002'
+    ]
+    id: 'deploy-assessor-mcp'
+    waitFor: ['build-assessor-mcp']
+
+  # Deploy Compliance Agent
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        CONTRACTOR_URL=$(gcloud run services describe building-permit-contractor-agent --platform managed --region ${_LOCATION} --format='value(status.url)')
+        
+        gcloud run deploy building-permit-agent \
+          --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:latest \
+          --platform managed \
+          --region ${_LOCATION} \
+          --allow-unauthenticated \
+          --set-env-vars "CONTRACTOR_AGENT_URL=$CONTRACTOR_URL/a2a/building_permit_contractor_agent/.well-known/agent-card.json"
+    id: 'deploy-agent'
+    waitFor: ['build-agent', 'deploy-contractor-agent']
+
+  # Deploy API Gateway
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        AGENT_URL=$(gcloud run services describe building-permit-agent --platform managed --region ${_LOCATION} --format='value(status.url)')
+        ASSESSOR_URL=$(gcloud run services describe building-permit-assessor-mcp --platform managed --region ${_LOCATION} --format='value(status.url)')
+        
+        gcloud run deploy building-permit-api \
+          --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:latest \
+          --platform managed \
+          --region ${_LOCATION} \
+          --allow-unauthenticated \
+          --set-env-vars "AGENT_URL=$AGENT_URL,ASSESSOR_URL=$ASSESSOR_URL"
+    id: 'deploy-api'
+    waitFor: ['build-api', 'deploy-agent', 'deploy-assessor-mcp']
+
+  # Deploy Frontend
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        API_URL=$(gcloud run services describe building-permit-api --platform managed --region ${_LOCATION} --format='value(status.url)')
+        
+        gcloud run deploy building-permit-frontend \
+          --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:latest \
+          --platform managed \
+          --region ${_LOCATION} \
+          --allow-unauthenticated \
+          --set-env-vars "API_BACKEND_SERVICE_URL=$API_URL"
+    id: 'deploy-frontend'
+    waitFor: ['build-frontend', 'deploy-api']
+
 images:
   - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:$COMMIT_SHA'
   - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:latest'
