@@ -3,21 +3,45 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:latest', './agent']
     id: 'build-agent'
+  
+  # Push Compliance Agent
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:latest']
+    id: 'push-agent'
+    waitFor: ['build-agent']
 
   # Build Contractor Agent
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest', './contractor-agent']
     id: 'build-contractor-agent'
 
+  # Push Contractor Agent
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest']
+    id: 'push-contractor-agent'
+    waitFor: ['build-contractor-agent']
+
   # Build Assessor MCP Server
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest', './assessor-mcp-server']
     id: 'build-assessor-mcp'
 
+  # Push Assessor MCP Server
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest']
+    id: 'push-assessor-mcp'
+    waitFor: ['build-assessor-mcp']
+
   # Build API Gateway
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:$COMMIT_SHA', '-t', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:latest', './api']
     id: 'build-api'
+
+  # Push API Gateway
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/api:latest']
+    id: 'push-api'
+    waitFor: ['build-api']
 
   # Build Frontend
   - name: 'gcr.io/cloud-builders/docker'
@@ -31,6 +55,12 @@ steps:
     ]
     id: 'build-frontend'
 
+  # Push Frontend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/frontend:latest']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
   # Deploy Contractor Agent
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
@@ -42,7 +72,7 @@ steps:
       '--allow-unauthenticated'
     ]
     id: 'deploy-contractor-agent'
-    waitFor: ['build-contractor-agent']
+    waitFor: ['push-contractor-agent']
 
   # Deploy Assessor MCP Server
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -56,7 +86,7 @@ steps:
       '--port', '8002'
     ]
     id: 'deploy-assessor-mcp'
-    waitFor: ['build-assessor-mcp']
+    waitFor: ['push-assessor-mcp']
 
   # Deploy Compliance Agent
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -73,7 +103,7 @@ steps:
           --allow-unauthenticated \
           --set-env-vars "CONTRACTOR_AGENT_URL=$$CONTRACTOR_URL/a2a/building_permit_contractor_agent/.well-known/agent-card.json"
     id: 'deploy-agent'
-    waitFor: ['build-agent', 'deploy-contractor-agent']
+    waitFor: ['push-agent', 'deploy-contractor-agent']
 
   # Deploy API Gateway
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -91,7 +121,7 @@ steps:
           --allow-unauthenticated \
           --set-env-vars "AGENT_URL=$$AGENT_URL,ASSESSOR_URL=$$ASSESSOR_URL"
     id: 'deploy-api'
-    waitFor: ['build-api', 'deploy-agent', 'deploy-assessor-mcp']
+    waitFor: ['push-api', 'deploy-agent', 'deploy-assessor-mcp']
 
   # Deploy Frontend
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -108,7 +138,7 @@ steps:
           --allow-unauthenticated \
           --set-env-vars "API_BACKEND_SERVICE_URL=$$API_URL"
     id: 'deploy-frontend'
-    waitFor: ['build-frontend', 'deploy-api']
+    waitFor: ['push-frontend', 'deploy-api']
 
 images:
   - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/agent:$COMMIT_SHA'
