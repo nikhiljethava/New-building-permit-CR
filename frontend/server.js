@@ -35,6 +35,13 @@ app.use(createProxyMiddleware({
     changeOrigin: true,
 }));
 
+// Proxy OTel traces to Telemetry API
+app.use(createProxyMiddleware({
+    pathFilter: '/v1/traces',
+    target: 'https://telemetry.googleapis.com',
+    changeOrigin: true,
+}));
+
 // Serve static files from the dist directory
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath, { index: false }));
