@@ -17,6 +17,27 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { GoogleAuth } from 'google-auth-library';
+
+const auth = new GoogleAuth();
+let cachedToken = null;
+let tokenExpiry = 0;
+
+async function getAccessToken() {
+    if (cachedToken && Date.now() < tokenExpiry) {
+        return cachedToken;
+    }
+    try {
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        cachedToken = token.token;
+        tokenExpiry = Date.now() + 50 * 60 * 1000;
+        return cachedToken;
+    } catch (e) {
+        console.error("Failed to get access token:", e);
+        return null;
+    }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +57,17 @@ app.use(createProxyMiddleware({
 }));
 
 // Proxy OTel traces to Telemetry API
+app.use('/v1/traces', async (req, res, next) => {
+    const token = await getAccessToken();
+    if (token) {
+        req.headers['authorization'] = `Bearer ${token}`;
+        if (process.env.VITE_PROJECT_ID) {
+            req.headers['x-goog-user-project'] = process.env.VITE_PROJECT_ID;
+        }
+    }
+    next();
+});
+
 app.use(createProxyMiddleware({
     pathFilter: '/v1/traces',
     target: 'https://telemetry.googleapis.com',
