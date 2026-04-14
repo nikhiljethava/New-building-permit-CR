@@ -20,9 +20,7 @@ from mcp.types import ToolAnnotations
 from db import get_connection, init_db
 from google.auth.transport.grpc import AuthMetadataPlugin
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-    OTLPSpanExporter,
-)
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 import asyncio
@@ -57,18 +55,18 @@ try:
     )
 
     request = google.auth.transport.requests.Request()
-    auth_metadata_plugin = AuthMetadataPlugin(credentials=credentials, request=request)
-    channel_creds = grpc.composite_channel_credentials(
-        grpc.ssl_channel_credentials(),
-        grpc.metadata_call_credentials(auth_metadata_plugin),
-    )
+    credentials.refresh(request)
+    headers = {
+        "Authorization": f"Bearer {credentials.token}",
+        "x-goog-user-project": project_id,
+    }
     # Set up OpenTelemetry Python SDK
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(
         BatchSpanProcessor(
             OTLPSpanExporter(
-                credentials=channel_creds,
-                endpoint="https://telemetry.googleapis.com:443/v1/traces",
+                endpoint="https://telemetry.googleapis.com/v1/traces",
+                headers=headers,
             )
         )
     )

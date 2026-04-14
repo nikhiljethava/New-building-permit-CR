@@ -38,6 +38,14 @@ from google.cloud import logging as google_cloud_logging
 from google.adk.cli.fast_api import get_fast_api_app
 
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource, get_aggregated_resources
+from opentelemetry.resourcedetector.gcp_resource_detector import GoogleCloudResourceDetector
+import google.auth
+import google.auth.transport.requests
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from agent import app as adk_app
@@ -113,9 +121,37 @@ app: FastAPI = get_fast_api_app(
     artifact_service_uri=bucket_name,
     allow_origins=allow_origins,
     trace_to_cloud=False,
-    otel_to_cloud=True,
+    otel_to_cloud=False,
     lifespan=lifespan,
 )
+
+# Manual OTel setup for App Hub
+try:
+    credentials, project_id = google.auth.default()
+    request = google.auth.transport.requests.Request()
+    credentials.refresh(request)
+    headers = {
+        "Authorization": f"Bearer {credentials.token}",
+        "x-goog-user-project": project_id,
+    }
+    
+    resource = get_aggregated_resources(
+        detectors=[GoogleCloudResourceDetector()],
+    )
+    
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(
+                endpoint="https://telemetry.googleapis.com/v1/traces",
+                headers=headers,
+            )
+        )
+    )
+    trace.set_tracer_provider(tracer_provider)
+    print("Telemetry initialized manually successfully.")
+except Exception as e:
+    print(f"Warning: Failed to initialize Telemetry manually. Error: {e}")
 
 app.title = "contractor-agent"
 app.description = "API for interacting with the Contractor Agent"
