@@ -49,6 +49,7 @@ try:
                 SERVICE_NAME: OTEL_SERVICE_NAME,
                 "cloud.provider": "gcp",
                 "cloud.account.id": project_id,
+                "gcp.project_id": project_id,
                 "functional_type": "MCP",
                 "cloud.region": os.getenv("GOOGLE_CLOUD_LOCATION", ""),
             }

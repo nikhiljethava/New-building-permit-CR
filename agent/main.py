@@ -45,7 +45,7 @@ bucket_name = f"gs://{os.getenv("GOOGLE_CLOUD_PROJECT")}"
 
 # Set OpenTelemetry resource attributes
 otel_attrs = os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "")
-new_attrs = "functional_type=Agent,cloud.provider=gcp,cloud.account.id=" + os.getenv("GOOGLE_CLOUD_PROJECT", "")
+new_attrs = "functional_type=Agent,cloud.provider=gcp,cloud.account.id=" + os.getenv("GOOGLE_CLOUD_PROJECT", "") + ",gcp.project_id=" + os.getenv("GOOGLE_CLOUD_PROJECT", "")
 location = os.getenv("GOOGLE_CLOUD_LOCATION", "")
 if location:
     new_attrs += ",cloud.region=" + location
