@@ -61,6 +61,21 @@ steps:
     id: 'push-frontend'
     waitFor: ['build-frontend']
 
+
+  # Deploy Assessor MCP Server
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: [
+      'run', 'deploy', 'building-permit-assessor-mcp',
+      '--image', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest',
+      '--platform', 'managed',
+      '--region', '${_LOCATION}',
+      '--allow-unauthenticated',
+      '--port', '8002'
+    ]
+    id: 'deploy-assessor-mcp'
+    waitFor: ['push-assessor-mcp']
+
   # Deploy Contractor Agent
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
@@ -76,20 +91,6 @@ steps:
           --set-env-vars "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true,OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true,ASSESSOR_MCP_SERVER_URL=$$ASSESSOR_URL"
     id: 'deploy-contractor-agent'
     waitFor: ['deploy-assessor-mcp', 'push-contractor-agent']
-
-  # Deploy Assessor MCP Server
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args: [
-      'run', 'deploy', 'building-permit-assessor-mcp',
-      '--image', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/assessor-mcp-server:latest',
-      '--platform', 'managed',
-      '--region', '${_LOCATION}',
-      '--allow-unauthenticated',
-      '--port', '8002'
-    ]
-    id: 'deploy-assessor-mcp'
-    waitFor: ['push-assessor-mcp']
 
   # Deploy Compliance Agent
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
