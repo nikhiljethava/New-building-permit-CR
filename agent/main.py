@@ -67,8 +67,34 @@ app: FastAPI = get_fast_api_app(
 
 app.title = "Building Plan Compliance Agent"
 
-HTTPXClientInstrumentor().instrument()
-FastAPIInstrumentor.instrument_app(app)
+PROJECT_NUMBER = os.getenv("PROJECT_NUMBER", "271301686744")
+REGION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+
+agent_cais = f"//run.googleapis.com/projects/{PROJECT_NUMBER}/locations/{REGION}/services/building-permit-agent"
+contractor_cais = f"//run.googleapis.com/projects/{PROJECT_NUMBER}/locations/{REGION}/services/building-permit-contractor-agent"
+assessor_cais = f"//run.googleapis.com/projects/{PROJECT_NUMBER}/locations/{REGION}/services/building-permit-assessor-mcp"
+
+def server_request_hook(span, scope):
+    span.set_attribute("cloud.provider", "gcp")
+    span.set_attribute("cloud.resource.id", agent_cais)
+    span.set_attribute("gcp.resource.name", agent_cais)
+
+def client_request_hook(span, request):
+    span.set_attribute("cloud.provider", "gcp")
+    span.set_attribute("source.cloud.resource.id", agent_cais)
+    
+    url = str(request.url)
+    if "contractor-agent" in url:
+        span.set_attribute("gcp.resource.name", contractor_cais)
+        span.set_attribute("destination.cloud.resource.id", contractor_cais)
+        span.set_attribute("peer.service", "building-permit-contractor-agent")
+    elif "assessor-mcp" in url:
+        span.set_attribute("gcp.resource.name", assessor_cais)
+        span.set_attribute("destination.cloud.resource.id", assessor_cais)
+        span.set_attribute("peer.service", "building-permit-assessor-mcp")
+
+HTTPXClientInstrumentor().instrument(request_hook=client_request_hook)
+FastAPIInstrumentor.instrument_app(app, server_request_hook=server_request_hook)
 
 class Violation(BaseModel):
     section: str

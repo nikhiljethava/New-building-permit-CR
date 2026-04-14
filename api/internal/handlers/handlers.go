@@ -17,6 +17,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"internal/database"
 	"internal/models"
 	"io"
@@ -30,6 +31,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var agentHTTPClient = &http.Client{
@@ -206,7 +210,30 @@ func ChatHandler(c *gin.Context) {
 	defer c.Request.Body.Close()
 
 	// Forward the JSON payload to the Python agent
-	req, err := http.NewRequestWithContext(c.Request.Context(), "POST", agentURL, bytes.NewBuffer(body))
+	PROJECT_NUMBER := os.Getenv("PROJECT_NUMBER")
+	if PROJECT_NUMBER == "" {
+		PROJECT_NUMBER = "271301686744"
+	}
+	REGION := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if REGION == "" {
+		REGION = "us-central1"
+	}
+	api_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-api", PROJECT_NUMBER, REGION)
+	agent_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-agent", PROJECT_NUMBER, REGION)
+
+	tracer := otel.Tracer("api-server")
+	ctx, span := tracer.Start(c.Request.Context(), "call-agent-chat", trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("cloud.provider", "gcp"),
+		attribute.String("source.cloud.resource.id", api_cais),
+		attribute.String("gcp.resource.name", agent_cais),
+		attribute.String("destination.cloud.resource.id", agent_cais),
+		attribute.String("peer.service", "building-permit-agent"),
+	)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(body))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request to agent"})
 		return
@@ -251,7 +278,30 @@ func ContractorChatHandler(c *gin.Context) {
 	defer c.Request.Body.Close()
 
 	// Forward the JSON payload to the Python agent
-	req, err := http.NewRequestWithContext(c.Request.Context(), "POST", agentURL, bytes.NewBuffer(body))
+	PROJECT_NUMBER := os.Getenv("PROJECT_NUMBER")
+	if PROJECT_NUMBER == "" {
+		PROJECT_NUMBER = "271301686744"
+	}
+	REGION := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if REGION == "" {
+		REGION = "us-central1"
+	}
+	api_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-api", PROJECT_NUMBER, REGION)
+	contractor_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-contractor-agent", PROJECT_NUMBER, REGION)
+
+	tracer := otel.Tracer("api-server")
+	ctx, span := tracer.Start(c.Request.Context(), "call-contractor-agent", trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("cloud.provider", "gcp"),
+		attribute.String("source.cloud.resource.id", api_cais),
+		attribute.String("gcp.resource.name", contractor_cais),
+		attribute.String("destination.cloud.resource.id", contractor_cais),
+		attribute.String("peer.service", "building-permit-contractor-agent"),
+	)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", agentURL, bytes.NewBuffer(body))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request to agent"})
 		return
@@ -329,7 +379,30 @@ func AnalyzePlanHandler(c *gin.Context) {
 	}
 
 	// Create a new HTTP POST request to the Python agent
-	req, err := http.NewRequestWithContext(c.Request.Context(), "POST", agentURL, body)
+	PROJECT_NUMBER := os.Getenv("PROJECT_NUMBER")
+	if PROJECT_NUMBER == "" {
+		PROJECT_NUMBER = "271301686744"
+	}
+	REGION := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if REGION == "" {
+		REGION = "us-central1"
+	}
+	api_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-api", PROJECT_NUMBER, REGION)
+	agent_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-agent", PROJECT_NUMBER, REGION)
+
+	tracer := otel.Tracer("api-server")
+	ctx, span := tracer.Start(c.Request.Context(), "call-agent-analyze", trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("cloud.provider", "gcp"),
+		attribute.String("source.cloud.resource.id", api_cais),
+		attribute.String("gcp.resource.name", agent_cais),
+		attribute.String("destination.cloud.resource.id", agent_cais),
+		attribute.String("peer.service", "building-permit-agent"),
+	)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", agentURL, body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request to agent"})
 		return
@@ -410,7 +483,30 @@ func GetPropertiesByEmailHandler(c *gin.Context) {
 		MaxRetries: 3,
 	}
 
-	cs, err := client.Connect(c.Request.Context(), transport, nil)
+	PROJECT_NUMBER := os.Getenv("PROJECT_NUMBER")
+	if PROJECT_NUMBER == "" {
+		PROJECT_NUMBER = "271301686744"
+	}
+	REGION := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if REGION == "" {
+		REGION = "us-central1"
+	}
+	api_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-api", PROJECT_NUMBER, REGION)
+	assessor_cais := fmt.Sprintf("//run.googleapis.com/projects/%s/locations/%s/services/building-permit-assessor-mcp", PROJECT_NUMBER, REGION)
+
+	tracer := otel.Tracer("api-server")
+	ctx, span := tracer.Start(c.Request.Context(), "connect-assessor-mcp", trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("cloud.provider", "gcp"),
+		attribute.String("source.cloud.resource.id", api_cais),
+		attribute.String("gcp.resource.name", assessor_cais),
+		attribute.String("destination.cloud.resource.id", assessor_cais),
+		attribute.String("peer.service", "building-permit-assessor-mcp"),
+	)
+
+	cs, err := client.Connect(ctx, transport, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to Assessor MCP"})
 		return
