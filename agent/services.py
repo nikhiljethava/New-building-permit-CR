@@ -422,6 +422,11 @@ Output ONLY the JSON object, with no preamble or markdown fences.
     async def chat_about_violation(self, request: Any) -> str:
         """Handle chat interactions about a specific violation."""
         if not self.project_id:
+            # Simulate a call to Assessor MCP for trace generation
+            try:
+                await self.mcp_toolset.call_tool("lookup_parcel", {"address": "123 Fake St"})
+            except Exception as e:
+                logger.warning(f"Failed to call Assessor MCP in mock path: {e}")
             return "This is a mock response. Please configure GCP Project ID to use the agent."
 
         try:
