@@ -26,7 +26,14 @@ _global_conn = None
 def get_connection():
     global _global_conn
     if _global_conn is None:
-        os.makedirs(os.path.dirname(DB_NAME), exist_ok=True)
+        print(f"DEBUG: DB_NAME is {DB_NAME}")
+        print(f"DEBUG: Dir exists before makedirs: {os.path.exists(os.path.dirname(DB_NAME))}")
+        try:
+            os.makedirs(os.path.dirname(DB_NAME), exist_ok=True)
+            print("DEBUG: os.makedirs succeeded")
+        except Exception as e:
+            print(f"DEBUG: os.makedirs failed: {e}")
+        print(f"DEBUG: Dir exists after makedirs: {os.path.exists(os.path.dirname(DB_NAME))}")
         _global_conn = sqlite3.connect(DB_NAME, check_same_thread=False)
         _global_conn.row_factory = sqlite3.Row
     return _global_conn
