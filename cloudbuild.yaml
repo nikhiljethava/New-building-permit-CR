@@ -69,7 +69,8 @@ steps:
       '--image', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest',
       '--platform', 'managed',
       '--region', '${_LOCATION}',
-      '--allow-unauthenticated'
+      '--allow-unauthenticated',
+      '--set-env-vars', 'GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true,OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true'
     ]
     id: 'deploy-contractor-agent'
     waitFor: ['push-contractor-agent']
@@ -102,7 +103,7 @@ steps:
           --platform managed \
           --region ${_LOCATION} \
           --allow-unauthenticated \
-          --set-env-vars "CONTRACTOR_AGENT_URL=$$CONTRACTOR_URL/a2a/building_permit_contractor_agent/.well-known/agent-card.json,ASSESSOR_MCP_SERVER_URL=$$ASSESSOR_URL"
+          --set-env-vars "CONTRACTOR_AGENT_URL=$$CONTRACTOR_URL/a2a/building_permit_contractor_agent/.well-known/agent-card.json,ASSESSOR_MCP_SERVER_URL=$$ASSESSOR_URL,GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true,OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true"
     id: 'deploy-agent'
     waitFor: ['push-agent', 'deploy-contractor-agent']
 
