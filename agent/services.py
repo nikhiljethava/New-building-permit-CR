@@ -37,7 +37,7 @@ from a2a.client import ClientConfig, ClientFactory
 from a2a.types import TransportProtocol
 
 from opentelemetry.propagate import inject
-from google.adk.integrations.agent_registry import AgentRegistry
+
 
 from google.adk.plugins.bigquery_agent_analytics_plugin import (
     BigQueryAgentAnalyticsPlugin,
@@ -127,34 +127,9 @@ class AIService:
                 self.project_id, self.docai_location, self.docai_processor_id
             )
 
-        # Find Registry Assets
-        self.registry = AgentRegistry(
-            project_id=self.project_id,
-            location=self.location,
-            header_provider=otel_header_provider,
-        )
-        servers = self.registry.list_mcp_servers(
-            filter_str="displayName:assessor-mcp-server", page_size=1
-        )
-        mcp_server_name = servers.get("mcpServers", [])[0]["name"]
-
-        if not mcp_server_name:
-            raise ValueError("Assessor MCP Server not found in Agent Registry")
-
-        logger.info(f"Found assessor-mcp-server: {mcp_server_name}")
-        self.mcp_server_name = mcp_server_name
-        self.mcp_toolset = self.registry.get_mcp_toolset(mcp_server_name)
-
-        agents_list = self.registry.list_agents(
-            filter_str="displayName:building_permit_contractor_agent", page_size=1
-        )
-        a2a_server_name = agents_list.get("agents", [])[0]["name"]
-
-        if not a2a_server_name:
-            raise ValueError("building_permit_contractor_agent not found in Agent Registry")
-
-        logger.info(f"Found building_permit_contractor_agent: {a2a_server_name}")
-        self.contractor_agent_name = a2a_server_name
+        # Initialize tools directly using environment variables or fallbacks
+        logger.info("Initializing tools directly without Agent Registry")
+        self.mcp_toolset = self.get_assessor_mcp_server()
 
         # Build the RAG retrieval FunctionTool
         # -----------------------------------------------------------------------
@@ -325,7 +300,7 @@ Output ONLY the JSON object, with no preamble or markdown fences.
                 model=self.model_name,
                 instruction=prompt,
                 tools=agent_tools,
-                sub_agents=[self.registry.get_remote_a2a_agent(self.contractor_agent_name)],
+                sub_agents=[self.get_remote_a2a_agent()],
                 after_agent_callback=auto_save_session_to_memory_callback,
             )
 
@@ -483,7 +458,7 @@ the violation.  Always retrieve the relevant section before advising the user.
                 model=self.model_name,
                 instruction=system_instruction,
                 tools=chat_tools,
-                sub_agents=[self.registry.get_remote_a2a_agent(self.contractor_agent_name)],
+                sub_agents=[self.get_remote_a2a_agent()],
             )
 
             agent_engine_id = (
