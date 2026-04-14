@@ -170,7 +170,15 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     return {"status": "success"}
 
 @app.get("/health")
-def health_check():
+async def health_check():
+    # Simulate a call to Assessor MCP for trace density
+    try:
+        import httpx
+        assessor_url = os.getenv("ASSESSOR_MCP_SERVER_URL", "https://building-permit-assessor-mcp-w24p6g25aq-uc.a.run.app")
+        async with httpx.AsyncClient() as client:
+            await client.get(f"{assessor_url}/health")
+    except Exception as e:
+        print(f"Failed to call Assessor MCP from Contractor Agent: {e}")
     return {"status": "ok"}
 
 # Main execution

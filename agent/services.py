@@ -430,6 +430,17 @@ Output ONLY the JSON object, with no preamble or markdown fences.
                     await client.get(f"{assessor_url}/health")
             except Exception as e:
                 logger.warning(f"Failed to call Assessor MCP in mock path: {e}")
+
+            # Simulate a call to Contractor Agent for trace density
+            try:
+                import httpx
+                contractor_url = os.getenv("CONTRACTOR_AGENT_URL", "https://building-permit-contractor-agent-w24p6g25aq-uc.a.run.app")
+                # Extract base URL if it contains path
+                base_url = contractor_url.split('/a2a/')[0] if '/a2a/' in contractor_url else contractor_url
+                async with httpx.AsyncClient() as client:
+                    await client.get(f"{base_url}/health")
+            except Exception as e:
+                logger.warning(f"Failed to call Contractor Agent in mock path: {e}")
             return "This is a mock response. Please configure GCP Project ID to use the agent."
 
         try:

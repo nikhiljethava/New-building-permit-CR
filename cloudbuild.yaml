@@ -63,17 +63,19 @@ steps:
 
   # Deploy Contractor Agent
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args: [
-      'run', 'deploy', 'building-permit-contractor-agent',
-      '--image', '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest',
-      '--platform', 'managed',
-      '--region', '${_LOCATION}',
-      '--allow-unauthenticated',
-      '--set-env-vars', 'GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true,OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true'
-    ]
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        ASSESSOR_URL=$$(gcloud run services describe building-permit-assessor-mcp --platform managed --region ${_LOCATION} --format='value(status.url)')
+        gcloud run deploy building-permit-contractor-agent \
+          --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/contractor-agent:latest \
+          --platform managed \
+          --region ${_LOCATION} \
+          --allow-unauthenticated \
+          --set-env-vars "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true,OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true,ASSESSOR_MCP_SERVER_URL=$$ASSESSOR_URL"
     id: 'deploy-contractor-agent'
-    waitFor: ['push-contractor-agent']
+    waitFor: ['deploy-assessor-mcp', 'push-contractor-agent']
 
   # Deploy Assessor MCP Server
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
