@@ -26,6 +26,7 @@ _global_conn = None
 def get_connection():
     global _global_conn
     if _global_conn is None:
+        os.makedirs(os.path.dirname(DB_NAME), exist_ok=True)
         _global_conn = sqlite3.connect(DB_NAME, check_same_thread=False)
         _global_conn.row_factory = sqlite3.Row
     return _global_conn

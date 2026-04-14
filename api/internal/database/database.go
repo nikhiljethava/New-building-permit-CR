@@ -18,6 +18,7 @@ import (
 	"internal/models"
 	"log"
 	"os"
+	"path/filepath"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -30,6 +31,10 @@ func InitDB() {
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
 		dbName = "building_plans.db"
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dbName), 0755); err != nil {
+		log.Fatalf("Failed to create database directory: %v", err)
 	}
 
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
