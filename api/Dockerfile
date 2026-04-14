@@ -34,9 +34,7 @@ LABEL org.opencontainers.image.url='https://github.com/srinandan/building-permit
 COPY --from=build /app/api-server /usr/local/bin/api-server
 EXPOSE 8080
 ENV PORT=8080
-ENV DB_NAME=/app/data/building_plans.db
+ENV DB_NAME=/tmp/building_plans.db
 ENV OTEL_SERVICE_NAME=building-permit-api
 ENV OTEL_EXPORTER_OTLP_ENDPOINT=https://telemetry.googleapis.com
-# Create a volume for the sqlite database to persist
-VOLUME ["/app/data"]
 ENTRYPOINT ["api-server"]
